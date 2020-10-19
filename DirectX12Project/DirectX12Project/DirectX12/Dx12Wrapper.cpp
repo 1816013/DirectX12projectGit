@@ -1,9 +1,23 @@
 #include "Dx12Wrapper.h"
 #include <Windows.h>
 #include <cassert>
+#include <DirectXMath.h>
+#include <d3dcompiler.h>
 #include "../Application.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+
+using namespace DirectX;
+
+XMFLOAT3 vertices_[3];
+
+void CreateVertices()
+{
+	vertices_[0] = { -1.0f, -1.0f, 0.0f };
+	vertices_[1] = { 0.0f, 1.0f, 0.0f };
+	vertices_[2] = { 1.0f, -1.0f, 0.0f };
+}
 
 Dx12Wrapper::Dx12Wrapper()
 {
@@ -101,7 +115,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 		cmdAllocator_, nullptr,
 		IID_PPV_ARGS(&cmdList_));
 	assert(SUCCEEDED(result));
-	cmdList_->Close();
+	
 
 	// フェンスを作る(スレッドセーフに必要)
 	dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
@@ -110,19 +124,118 @@ bool Dx12Wrapper::Init(HWND hwnd)
 
 	CreateRenderTargetDescriptorHeap();
 
-	//// レンダーターゲットをクリア
-	//auto heapStart = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
-	//float clearColor[] = { 1.0f, 0.0f, 0.0f, 1.0f };
-	//cmdAllocator_->Reset();	
-	//cmdList_->Reset(cmdAllocator_, nullptr);
-	//cmdList_->OMSetRenderTargets(1, &heapStart, false, nullptr);
-	//cmdList_->ClearRenderTargetView(heapStart, clearColor, 0, nullptr);
-	//result = cmdList_->Close();
-	//assert(SUCCEEDED(result));
-	//ID3D12CommandList* cmdLists[] = { cmdList_ };
-	//cmdQue_->ExecuteCommandLists(1, cmdLists);
-	//result = swapchain_->Present(0, 0);
-	//assert(SUCCEEDED(result));
+	// 頂点表示
+	CreateVertices();
+
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC resDesc = {};
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resDesc.Width = sizeof(vertices_);	// 頂点情報のサイズ
+	resDesc.Height = 1;
+	resDesc.DepthOrArraySize = 1;
+	resDesc.MipLevels = 1;
+	resDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resDesc.SampleDesc.Count = 1;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	result = dev_->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&vertexBuffer_));
+	assert(SUCCEEDED(result));
+
+	//頂点データ転送
+	XMFLOAT3* vertMap = nullptr;
+	result = vertexBuffer_->Map(0, nullptr, (void**)&vertMap);
+	assert(SUCCEEDED(result));
+	std::copy(std::begin(vertices_), std::end(vertices_), vertMap);
+	vertexBuffer_->Unmap(0, nullptr);
+
+	// 頂点バッファビュー
+	vbView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
+	vbView_.StrideInBytes = sizeof(XMFLOAT3);
+	vbView_.SizeInBytes = sizeof(vertices_);
+	cmdList_->IASetVertexBuffers(0, 1, &vbView_);
+	cmdList_->Close();
+
+	// シェーダー読み込み
+	result = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, nullptr, "BasicVS", "vs_5_0",
+		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 
+		0, &vertexShader_, nullptr);
+	assert(SUCCEEDED(result));
+
+	result = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, nullptr, "BasicPS", "ps_5_0",
+		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
+		0, &pixelShader_, nullptr);
+	assert(SUCCEEDED(result));
+
+	// ルートパラメータ
+	D3D12_ROOT_PARAMETER rootParam = {};
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam.DescriptorTable.NumDescriptorRanges = 1;
+
+	D3D12_ROOT_SIGNATURE_DESC rsd = {};
+	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	// シグネチャ設定
+
+	D3D12SerializeRootSignature(&rsd,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&signature_,
+		&error_);
+
+	// ルートシグネチャの生成
+	result = dev_->CreateRootSignature(0,
+		signature_->GetBufferPointer(),
+		signature_->GetBufferSize(),
+		IID_PPV_ARGS(&rootSignature_));
+	assert(SUCCEEDED(result));
+
+	// 頂点レイアウト
+	D3D12_INPUT_ELEMENT_DESC inputLayoutDescs[] = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
+
+	// パイプラインステートオブジェクト生成
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
+	// -ルートシグネクチャと頂点レイアウト
+	gpsDesc.pRootSignature = rootSignature_;
+	gpsDesc.InputLayout.pInputElementDescs = inputLayoutDescs;
+	gpsDesc.InputLayout.NumElements = _countof(inputLayoutDescs);
+	// -シェーダ系
+
+	D3D12_SHADER_BYTECODE vsByte;
+	vsByte.pShaderBytecode = vertexShader_;
+	vsByte.BytecodeLength = sizeof(vertexShader_);
+	gpsDesc.VS = vsByte;
+	D3D12_SHADER_BYTECODE psByte;
+	psByte.pShaderBytecode = pixelShader_;
+	psByte.BytecodeLength = sizeof(pixelShader_);
+	gpsDesc.PS = psByte;
+	// --使わない
+	//gpsDesc.HS;
+	//gpsDesc.DS;
+	//gpsDesc.GS;
+	gpsDesc.NumRenderTargets = 1;
+	gpsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// 深度ステンシル
+	gpsDesc.DepthStencilState.DepthEnable = false;
+	gpsDesc.DepthStencilState.StencilEnable = false;
+	gpsDesc.DSVFormat;
+
+	// ラスタライザ
+	D3D12_RASTERIZER_DESC rasDesc = {};
+	gpsDesc.RasterizerState = rasDesc;
 
 	return true;
 }
@@ -131,12 +244,8 @@ bool Dx12Wrapper::Update()
 {
 	cmdAllocator_->Reset();
 	cmdList_->Reset(cmdAllocator_, nullptr);
-	// ここに命令(コマンドリストを積んでいく)
-	float clsCol[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
-	auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
-	auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
-	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	rtvHeap.ptr += bbIdx * rtvIncSize;
+	// ここに命令(コマンドリストを積んでいく)	
+	auto bbIdx = swapchain_->GetCurrentBackBufferIndex();	
 	// リソースバリアを設定プレゼントからレンダーターゲット
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -145,9 +254,14 @@ bool Dx12Wrapper::Update()
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	cmdList_->ResourceBarrier(1, &barrier);
-	// レンダーターゲットをセット
+
+	// レンダーターゲットをセット	
+	auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	rtvHeap.ptr += bbIdx * rtvIncSize;
 	cmdList_->OMSetRenderTargets(1, &rtvHeap, false, nullptr);
 	// 背景色をクリア(色変える)
+	float clsCol[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	cmdList_->ClearRenderTargetView(rtvHeap, clsCol, 0, nullptr);
 
 	// リソースバリアを設定レンダーターゲットからプレゼント
@@ -157,6 +271,7 @@ bool Dx12Wrapper::Update()
 	cmdList_->ResourceBarrier(1, &barrier);
 
 	cmdList_->Close();
+
 	ID3D12CommandList* cmdLists[] = { cmdList_ };
 	cmdQue_->ExecuteCommandLists(1, cmdLists);
 	cmdQue_->Signal(fence_,++fenceValue_);
@@ -169,6 +284,7 @@ bool Dx12Wrapper::Update()
 		}
 	}
 	swapchain_->Present(1, 0);
+
 	return true;
 }
 

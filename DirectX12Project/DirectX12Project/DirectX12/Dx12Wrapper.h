@@ -4,6 +4,7 @@
 #include <vector>
 
 
+
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -48,5 +49,17 @@ private:
 	ID3D12DescriptorHeap* rtvHeap_ = nullptr;
 	ID3D12Fence1* fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
 	uint64_t fenceValue_ = 0;
+
+	ID3D12Resource* vertexBuffer_ = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW vbView_ = {};
+
+	// シェーダ
+	ID3D10Blob* vertexShader_ = nullptr;
+	ID3D10Blob* pixelShader_ = nullptr;
+
+	//ルートシグネチャ
+	ID3D12RootSignature* rootSignature_ = nullptr;//これが最終的に欲しいオブジェクト
+	ID3DBlob* signature_ = nullptr;//ルートシグネチャをつくるための材料
+	ID3DBlob* error_ = nullptr;//エラー出た時の対処
 };
 
