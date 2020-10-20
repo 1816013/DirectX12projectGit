@@ -36,6 +36,18 @@ private:
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool CreateRenderTargetDescriptorHeap();
 
+	
+	void CreateVertices();
+
+	/// <summary>
+	/// 頂点バッファを生成(してCPU側の頂点情報をコピー)
+	/// </summary>
+	void CreateVertexBaffer();
+
+	bool CreatePipelineState();
+
+	void OutputFromErrorBlob(ID3DBlob* errBlob);
+
 	ID3D12Device* dev_ = nullptr;
 	ID3D12CommandAllocator* cmdAllocator_ = nullptr;
 	ID3D12GraphicsCommandList* cmdList_ = nullptr;
@@ -50,16 +62,23 @@ private:
 	ID3D12Fence1* fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
 	uint64_t fenceValue_ = 0;
 
-	ID3D12Resource* vertexBuffer_ = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW vbView_ = {};
+	ID3D12Resource* vertexBuffer_ = nullptr;	// 頂点バッファ
+	D3D12_VERTEX_BUFFER_VIEW vbView_ = {};	// 頂点バッファビュー
+
+	// パイプライン
+	ID3D12PipelineState* pipelineState_ = nullptr;
 
 	// シェーダ
 	ID3D10Blob* vertexShader_ = nullptr;
 	ID3D10Blob* pixelShader_ = nullptr;
 
 	//ルートシグネチャ
-	ID3D12RootSignature* rootSignature_ = nullptr;//これが最終的に欲しいオブジェクト
+	ID3D12RootSignature* rootSig_ = nullptr;//これが最終的に欲しいオブジェクト
 	ID3DBlob* signature_ = nullptr;//ルートシグネチャをつくるための材料
 	ID3DBlob* error_ = nullptr;//エラー出た時の対処
+
+	// ビューポート
+	D3D12_VIEWPORT viewPort_ = {};
+	D3D12_RECT scissorRect_ = {};
 };
 

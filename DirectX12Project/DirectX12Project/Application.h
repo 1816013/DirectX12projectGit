@@ -6,7 +6,7 @@
 struct Size
 {
 	size_t width;
-	size_t hight;
+	size_t height;
 };
 
 class Dx12Wrapper;
