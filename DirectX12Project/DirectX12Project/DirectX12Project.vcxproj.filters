@@ -37,4 +37,7 @@
     <FxCompile Include="Shader\vs.hlsl" />
     <FxCompile Include="Shader\ps.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\Common.hlsli" />
+  </ItemGroup>
 </Project>

@@ -1,13 +1,10 @@
-struct Out
-{
-	float4 svpos : SV_POSITION;
-	float4 pos : POSITION;
-};
+#include "Common.hlsli"
 
-Out VS( float4 pos : POSITION ) //: SV_POSITION
+VsOutput VS( float4 pos : POSITION , float2 uv : TEXCOORD) //: SV_POSITION
 {
-	Out o;
+	VsOutput o;
 	o.svpos = pos;
 	o.pos = pos;
+	o.uv = uv;
 	return o;
 }
