@@ -2,6 +2,8 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <vector>
+#include <DirectXMath.h>
+#include "../Loder/BmpLoder.h"
 
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
@@ -29,6 +31,12 @@ public:
 	void Terminate();
 private:
 	/// <summary>
+	/// DirectXの機能レベルを確認する
+	/// </summary>
+	/// <returns>true:成功　false:失敗</returns>
+	bool CheckFeatureLevel();
+
+	/// <summary>
 	/// RenderTargetDescriptorHeapの作成
 	/// </summary>
 	/// <returns>true : 成功 false : 失敗</returns>
@@ -47,10 +55,26 @@ private:
 	/// <summary>
 	/// パイプラインステートオブジェクト作成
 	/// </summary>
-	/// <returns></returns>
+	/// <returns>true:成功 false:失敗</returns>
 	bool CreatePipelineState();
 
+	/// <summary>
+	/// テクスチャの作成
+	/// </summary>
+	/// <returns>true:成功 false:失敗</returns>
 	bool CreateTexture();
+
+	/// <summary>
+	/// リソースの基本的なデスクリプタ作成
+	/// </summary>
+	/// <returns>true:成功 false:失敗</returns>
+	bool CreateBasicDescriptors();
+
+	/// <summary>
+	/// 定数バッファの作成
+	/// </summary>
+	/// <returns>true:成功 false:失敗</returns>
+	bool CreateConstantBuffer();
 
 	/// <summary>
 	/// エラー情報を出力に表示
@@ -92,9 +116,19 @@ private:
 	// シザー矩形
 	D3D12_RECT scissorRect_ = {};
 
+	// リソース
+	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用デスクリプタヒープ
 	// テクスチャ
 	ID3D12Resource* texBuffer_;	// テクスチャリソース
-	ID3D12DescriptorHeap* srvDescHeap_ = nullptr;	// テクスチャビュー用デスクリプタヒープ
+	// 定数バッファ
+	ID3D12Resource* constantBuffer_;	// 定数バッファ
+
+	struct BasicMatrix
+	{
+		DirectX::XMMATRIX world;
+		DirectX::XMMATRIX viewproj;
+	};
+	BasicMatrix* mappedBasicMatrix_;
 
 };
 

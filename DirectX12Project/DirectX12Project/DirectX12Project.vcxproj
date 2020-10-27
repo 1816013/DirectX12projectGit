@@ -141,11 +141,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Loder\BmpLoder.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="Loder\BmpLoder.h" />
+    <ClInclude Include="Common.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
   </ItemGroup>
   <ItemGroup>
