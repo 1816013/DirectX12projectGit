@@ -100,6 +100,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(DXTEX_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <GenerateXMLDocumentationFiles>true</GenerateXMLDocumentationFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -141,15 +142,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="Loder\BmpLoder.cpp" />
+    <ClCompile Include="BMPLoder\BmpLoder.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PMDLoder\PMDModel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
-    <ClInclude Include="Loder\BmpLoder.h" />
+    <ClInclude Include="BMPLoder\BmpLoder.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
+    <ClInclude Include="PMDLoder\PMDModel.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\ps.hlsl">

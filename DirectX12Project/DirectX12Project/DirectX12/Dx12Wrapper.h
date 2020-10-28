@@ -3,8 +3,10 @@
 #include <dxgi1_6.h>
 #include <vector>
 #include <DirectXMath.h>
-#include "../Loder/BmpLoder.h"
+#include <memory>
+#include "../BMPLoder/BmpLoder.h"
 
+class PMDModel;
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -18,6 +20,8 @@ public:
 	/// </summary>
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool Init(HWND hwnd);
+
+	
 
 	/// <summary>
 	/// DirectX12の更新を行う
@@ -35,6 +39,25 @@ private:
 	/// </summary>
 	/// <returns>true:成功　false:失敗</returns>
 	bool CheckFeatureLevel();
+
+	/// <summary>
+	/// 各種コマンド類初期化(cmdAllocator_, cmdList_, cmdQue_ )
+	/// </summary>
+	/// <returns>true : 成功 false : 失敗</returns>
+	bool InitCommandSet();
+
+	/// <summary>
+	/// スワップチェイン作成
+	/// </summary>
+	/// <param name="hwnd">ウインドウハンドル</param>
+	/// <returns>true : 成功 false : 失敗</returns>
+	bool CreateSwapChain(const HWND hwnd);
+
+	/// <summary>
+	/// フェンス作成(スレッドセーフに必要)
+	/// </summary>
+	/// <returns>true : 成功 false : 失敗</returns>
+	bool CreateFence();
 
 	/// <summary>
 	/// RenderTargetDescriptorHeapの作成
@@ -57,6 +80,12 @@ private:
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
 	bool CreatePipelineState();
+
+	/// <summary>
+	/// ビューポートとシザー矩形初期化
+	/// </summary>
+	/// /// <returns>true:成功 false:失敗</returns>
+	bool InitViewRect();
 
 	/// <summary>
 	/// テクスチャの作成
@@ -130,5 +159,7 @@ private:
 	};
 	BasicMatrix* mappedBasicMatrix_;
 
+
+	std::shared_ptr<PMDModel> pmdModel_;
 };
 

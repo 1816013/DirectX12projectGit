@@ -6,6 +6,7 @@
 #include <random>
 #include <DirectXTex.h>
 #include "../Application.h"
+#include "../PMDLoder/PMDModel.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -75,9 +76,6 @@ void CreateIndices()
 				 8, 9, 10, 10, 9, 11,// 上面
 				 12, 13, 14, 14, 13, 15 // 下面
 				 };
-	/*indices_ = { 0, 1, 5, 5, 1, 6 };
-	indices_ = { 0, 1, 2, 2, 1, 3 };
-	indices_ = { 0, 1, 2, 2, 1, 3 };*/
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -169,11 +167,10 @@ bool Dx12Wrapper::CreateTexture()
 {
 	HRESULT result = S_OK;
 
-	result = CoInitializeEx(0, COINIT_MULTITHREADED);
 	assert(SUCCEEDED(result));
 	TexMetadata metaData= {};
 	ScratchImage scratchImg = {};
-	result = LoadFromWICFile(L"image/kyouryuu.png", WIC_FLAGS_IGNORE_SRGB, &metaData, scratchImg);
+	result = LoadFromWICFile(L"Resource/image/kyouryuu.png", WIC_FLAGS_IGNORE_SRGB, &metaData, scratchImg);
 	assert(SUCCEEDED(result));
 	auto img = scratchImg.GetImage(0, 0, 0);// 生データ抽出
 
@@ -204,9 +201,9 @@ bool Dx12Wrapper::CreateTexture()
 		IID_PPV_ARGS(&texBuffer_));
 	assert(SUCCEEDED(result));
 	
-	BmpLoder bmp("image/sample.bmp");
+	/*BmpLoder bmp("Resource/image/sample.bmp");
 	auto bSize = bmp.GetBmpSize();
-	auto& rawData = bmp.GetRawData();
+	auto& rawData = bmp.GetRawData();*/
 	//// テクスチャデータ作成※本来は外部から読み込む
 	//vector<uint8_t>texData(4 * bSize.width * bSize.height);
 	//int texIdx = 0;
@@ -339,22 +336,16 @@ bool Dx12Wrapper::CreateConstantBuffer()
 		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
 
 	// プロジェクション行列(パースペクティブ行列or射影行列)
-	//tmpMat *= XMMatrixPerspectiveFovLH(XM_PIDIV2, static_cast<float>(wSize.width) / static_cast<float>(wSize.height), 0.1f, 300.0f);
 	viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV2, // 画角(FOV)
 		static_cast<float>(wSize.width) / static_cast<float>(wSize.height), 
 		0.1f,	// ニア(近い)
 		300.0f);	//　ファー(遠い)
 
+	// 後でいじるために開けっ放しにしておく
 	constantBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
 	
 	mappedBasicMatrix_->viewproj = viewproj;
 	mappedBasicMatrix_->world = world;
-	
-	//XMStoreFloat4x4(mappedBasicMat, tmpMat);
-	//*mat = tmpMat ;
-	//constantBuffer_->Unmap(0, nullptr);
-
-	
 	return true;
 }
 
@@ -545,59 +536,14 @@ bool Dx12Wrapper::Init(HWND hwnd)
 #endif
 	assert(SUCCEEDED(result));
 
-	// コマンドキュー作成
-	D3D12_COMMAND_QUEUE_DESC cmdQDesc = {};
-	cmdQDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	cmdQDesc.NodeMask = 0;
-	cmdQDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-	cmdQDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	result = dev_->CreateCommandQueue(&cmdQDesc, IID_PPV_ARGS(&cmdQue_));
-	assert(SUCCEEDED(result));
-
-	// swapchainDesc作成
-	auto& app = Application::GetInstance();
-	auto wSize = app.GetWindowSize();
-	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
-	scDesc.Width = static_cast<UINT>(wSize.width);
-	scDesc.Height = static_cast<UINT>(wSize.height);
-	scDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	scDesc.BufferCount = 2;	// 表と裏画面
-	// ※バックバッファでも動くが
-	// 　違いが判らないため要検証
-	scDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER; 
-	scDesc.Flags = 0/*DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH*/;
-	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	scDesc.SampleDesc.Count = 1;
-	scDesc.SampleDesc.Quality = 0;
-	scDesc.Stereo = false;	// VRの時true
-	scDesc.Scaling = DXGI_SCALING_STRETCH;
-	scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	InitCommandSet();
 	
-	// swapchain作成
-	result = dxgi_->CreateSwapChainForHwnd(cmdQue_,
-		hwnd,
-		&scDesc,
-		nullptr,
-		nullptr,
-		(IDXGISwapChain1**)&swapchain_);
-	assert(SUCCEEDED(result));
+	pmdModel_ = make_shared<PMDModel>();
+	pmdModel_->Load("Resource/PMD/model/初音ミク.pmd");
 
-	// コマンドアロケーターの作成
-	dev_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, 
-		IID_PPV_ARGS(&cmdAllocator_));
-	assert(SUCCEEDED(result));
-
-	// コマンドリストの作成
-	dev_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, 
-		cmdAllocator_, nullptr,
-		IID_PPV_ARGS(&cmdList_));
-	assert(SUCCEEDED(result));
-	cmdList_->Close();
+	CreateSwapChain(hwnd);
 	
-
-	// フェンスを作る(スレッドセーフに必要)
-	dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	fenceValue_ = fence_->GetCompletedValue();
+	CreateFence();
 
 	// レンダーターゲットを作成
 	CreateRenderTargetDescriptorHeap();
@@ -615,15 +561,19 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	CreateTexture();
 	CreateBasicDescriptors();
 
-
-	
-
-
 	if (!CreatePipelineState())
 	{
 		return false;
 	}
+	InitViewRect();
 
+	return true;
+}
+
+bool Dx12Wrapper::InitViewRect()
+{
+	auto& app = Application::GetInstance();
+	auto wSize = app.GetWindowSize();
 	// ビューポート
 	viewPort_.TopLeftX = 0;
 	viewPort_.TopLeftY = 0;
@@ -631,7 +581,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	viewPort_.Height = wSize.height;
 	viewPort_.MaxDepth = 1.0f;
 	viewPort_.MinDepth = 0.0f;
-	
+
 	// シザー矩形の設定
 	scissorRect_.left = 0;
 	scissorRect_.top = 0;
@@ -646,7 +596,7 @@ bool Dx12Wrapper::Update()
 	cmdAllocator_->Reset();
 	cmdList_->Reset(cmdAllocator_, pipelineState_);
 	// ここに命令(コマンドリストを積んでいく)	
-	auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
+	
 
 	static float modelY = 0.0f;
 	static float angle = 0.0f;
@@ -660,13 +610,12 @@ bool Dx12Wrapper::Update()
 	{
 		modelY -= 0.1f;
 	}
-
-	
 	angle += 0.02;
 	mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 	mappedBasicMatrix_->world *= XMMatrixRotationX(angle);
 	//mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
 	// リソースバリアを設定プレゼントからレンダーターゲット
+	auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -680,7 +629,7 @@ bool Dx12Wrapper::Update()
 	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	rtvHeap.ptr += bbIdx * rtvIncSize;
 	cmdList_->OMSetRenderTargets(1, &rtvHeap, false, nullptr);
-	// 背景色をクリア(色変える)
+	// 画面をクリア(色変える)
 	float clsCol[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	cmdList_->ClearRenderTargetView(rtvHeap, clsCol, 0, nullptr);
 
@@ -753,6 +702,73 @@ bool Dx12Wrapper::CheckFeatureLevel()
 		OutputDebugString(L"feature level not found");
 		return false;
 	}
+	return true;
+}
+
+bool Dx12Wrapper::InitCommandSet()
+{
+	// コマンドキュー作成
+	D3D12_COMMAND_QUEUE_DESC cmdQDesc = {};
+	cmdQDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	cmdQDesc.NodeMask = 0;
+	cmdQDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+	cmdQDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	auto result = dev_->CreateCommandQueue(&cmdQDesc, IID_PPV_ARGS(&cmdQue_));
+	assert(SUCCEEDED(result));
+
+	// コマンドアロケーターの作成
+	dev_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+		IID_PPV_ARGS(&cmdAllocator_));
+	assert(SUCCEEDED(result));
+
+	// コマンドリストの作成
+	dev_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+		cmdAllocator_, nullptr,
+		IID_PPV_ARGS(&cmdList_));
+	assert(SUCCEEDED(result));
+	cmdList_->Close();
+	return true;
+}
+
+bool Dx12Wrapper::CreateSwapChain(const HWND hwnd)
+{
+	// swapchainDesc作成
+	auto& app = Application::GetInstance();
+	auto wSize = app.GetWindowSize();
+	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
+	scDesc.Width = static_cast<UINT>(wSize.width);
+	scDesc.Height = static_cast<UINT>(wSize.height);
+	scDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	scDesc.BufferCount = 2;	// 表と裏画面
+	// ※バックバッファでも動くが
+	// 　違いが判らないため要検証
+	scDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
+	scDesc.Flags = 0/*DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH*/;
+	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+	scDesc.SampleDesc.Count = 1;
+	scDesc.SampleDesc.Quality = 0;
+	scDesc.Stereo = false;	// VRの時true
+	scDesc.Scaling = DXGI_SCALING_STRETCH;
+	scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+
+	// swapchain作成
+	auto result = dxgi_->CreateSwapChainForHwnd(cmdQue_,
+		hwnd,
+		&scDesc,
+		nullptr,
+		nullptr,
+		(IDXGISwapChain1**)&swapchain_);
+	assert(SUCCEEDED(result));
+	return true;
+}
+
+bool Dx12Wrapper::CreateFence()
+{
+	auto& app = Application::GetInstance();
+	auto wSize = app.GetWindowSize();
+	// フェンスを作る(スレッドセーフに必要)
+	dev_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
+	fenceValue_ = fence_->GetCompletedValue();
 	return true;
 }
 
