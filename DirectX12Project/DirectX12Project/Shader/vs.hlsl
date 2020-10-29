@@ -1,16 +1,13 @@
 #include "Common.hlsli"
 
-cbuffer Matrix:register(b0)
-{
-	matrix world;	// ワールド行列
-	matrix viewproj;	// カメラ行列
-}
-
-VsOutput VS( float4 pos : POSITION , float2 uv : TEXCOORD) //: SV_POSITION
+VsOutput VS( float4 pos : POSITION ,float4 normal : NORMAL, float2 uv : TEXCOORD) //: SV_POSITION
 {
 	VsOutput output;
 	pos = mul(mul(viewproj, world), pos);
 	output.svpos = pos;
+	matrix wld = world;
+	wld._14_24_34  = 0;	// 平行成分無効
+	output.norm = mul(wld,normal);
 	output.pos = pos;
 	output.uv = uv;
 	return output;

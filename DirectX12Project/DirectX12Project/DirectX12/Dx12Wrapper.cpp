@@ -5,6 +5,7 @@
 #include <string>
 #include <random>
 #include <DirectXTex.h>
+#include <stdint.h>
 #include "../Application.h"
 #include "../PMDLoder/PMDModel.h"
 #pragma comment(lib, "d3d12.lib")
@@ -24,7 +25,7 @@ struct Vertex
 	XMFLOAT2 uv;
 	Vertex(XMFLOAT3 vert, XMFLOAT2 tuv) : vertex(vert), uv(tuv) {};
 };
-vector<Vertex> vertices_;
+vector<PMDVertex> vertices_;
 vector<unsigned short>indices_;
 
 /// <summary>
@@ -40,42 +41,42 @@ UINT AligndValue(UINT value, UINT align)
 };
 void CreateVertices()
 {
-	// 手前
-	vertices_.push_back(Vertex({ -100.0f, -100.0f,100 }, { 0.0f,1.0f })); //左上
-	vertices_.push_back(Vertex({ -100.0f, 100.0f, 100}, { 0.0f,0.0f }));  //左下
-	vertices_.push_back(Vertex({ 100.0f,-100.0f,100 }, { 1.0f,1.0f }));	  //右上
-	vertices_.push_back(Vertex({ 100.0f, 100.0f,100 }, { 1.0f,0.0f }));	  //右下
+	//// 手前
+	//vertices_.push_back(Vertex({ -100.0f, -100.0f,100 }, { 0.0f,1.0f })); //左上
+	//vertices_.push_back(Vertex({ -100.0f, 100.0f, 100}, { 0.0f,0.0f }));  //左下
+	//vertices_.push_back(Vertex({ 100.0f,-100.0f,100 }, { 1.0f,1.0f }));	  //右上
+	//vertices_.push_back(Vertex({ 100.0f, 100.0f,100 }, { 1.0f,0.0f }));	  //右下
 
-	// 奥
-	vertices_.push_back(Vertex({ -100.0f, -100.0f,-100 }, { 1.0f,1.0f }));	//左上
-	vertices_.push_back(Vertex({ -100.0f, 100.0f, -100 }, { 1.0f,0.0f }));	//左下
-	vertices_.push_back(Vertex({ 100.0f, -100.0f,-100 }, { 0.0f,1.0f }));	//右上
-	vertices_.push_back(Vertex({ 100.0f, 100.0f,-100 }, { 0.0f,0.0f }));	//右下
+	//// 奥
+	//vertices_.push_back(Vertex({ -100.0f, -100.0f,-100 }, { 1.0f,1.0f }));	//左上
+	//vertices_.push_back(Vertex({ -100.0f, 100.0f, -100 }, { 1.0f,0.0f }));	//左下
+	//vertices_.push_back(Vertex({ 100.0f, -100.0f,-100 }, { 0.0f,1.0f }));	//右上
+	//vertices_.push_back(Vertex({ 100.0f, 100.0f,-100 }, { 0.0f,0.0f }));	//右下
 
 
-		// 上
-	vertices_.push_back(Vertex({ 100.0f, 100.0f,100 }, { 0.0f,1.0f }));	//左上
-	vertices_.push_back(Vertex({ -100.0f, 100.0f, 100 }, { 0.0f,0.0f }));	//左下
-	vertices_.push_back(Vertex({ 100.0f, 100.0f,-100 }, { 1.0f,1.0f }));	//右上
-	vertices_.push_back(Vertex({ -100.0f, 100.0f,-100 }, { 1.0f,0.0f }));	//右下
-	// 下
-	vertices_.push_back(Vertex({ -100.0f, -100.0f,100 }, { 0.0f,1.0f }));	//左上
-	vertices_.push_back(Vertex({ 100.0f, -100.0f, 100 }, { 0.0f,0.0f }));	//左下
-	vertices_.push_back(Vertex({ -100.0f, -100.0f,-100 }, { 1.0f,1.0f }));	//右上
-	vertices_.push_back(Vertex({ 100.0f, -100.0f,-100 }, { 1.0f,0.0f }));	//右下
+	//	// 上
+	//vertices_.push_back(Vertex({ 100.0f, 100.0f,100 }, { 0.0f,1.0f }));	//左上
+	//vertices_.push_back(Vertex({ -100.0f, 100.0f, 100 }, { 0.0f,0.0f }));	//左下
+	//vertices_.push_back(Vertex({ 100.0f, 100.0f,-100 }, { 1.0f,1.0f }));	//右上
+	//vertices_.push_back(Vertex({ -100.0f, 100.0f,-100 }, { 1.0f,0.0f }));	//右下
+	//// 下
+	//vertices_.push_back(Vertex({ -100.0f, -100.0f,100 }, { 0.0f,1.0f }));	//左上
+	//vertices_.push_back(Vertex({ 100.0f, -100.0f, 100 }, { 0.0f,0.0f }));	//左下
+	//vertices_.push_back(Vertex({ -100.0f, -100.0f,-100 }, { 1.0f,1.0f }));	//右上
+	//vertices_.push_back(Vertex({ 100.0f, -100.0f,-100 }, { 1.0f,0.0f }));	//右下
 
 
 }
 
 void CreateIndices()
 {
-	indices_ = { 0, 1, 2, 2, 1, 3 ,	// 前面
-				 2, 3, 6, 6, 3, 7,	// 右面
-				 6, 7, 4, 4, 7, 5,	// 裏面
-				 4, 5, 0, 0, 5, 1,	// 左面
-				 8, 9, 10, 10, 9, 11,// 上面
-				 12, 13, 14, 14, 13, 15 // 下面
-				 };
+	//indices_ = { 0, 1, 2, 2, 1, 3 ,	// 前面
+	//			 2, 3, 6, 6, 3, 7,	// 右面
+	//			 6, 7, 4, 4, 7, 5,	// 裏面
+	//			 4, 5, 0, 0, 5, 1,	// 左面
+	//			 8, 9, 10, 10, 9, 11,// 上面
+	//			 12, 13, 14, 14, 13, 15 // 下面
+	//			 };
 }
 
 void Dx12Wrapper::CreateVertexBuffer()
@@ -111,7 +112,7 @@ void Dx12Wrapper::CreateVertexBuffer()
 	assert(SUCCEEDED(result));
 
 	//頂点データ転送
-	Vertex* mappedData = nullptr;
+	PMDVertex* mappedData = nullptr;
 	result = vertexBuffer_->Map(0, nullptr, (void**)&mappedData);
 	assert(SUCCEEDED(result));
 	std::copy(vertices_.begin(), vertices_.end(), mappedData);
@@ -125,6 +126,7 @@ void Dx12Wrapper::CreateVertexBuffer()
 
 void Dx12Wrapper::CreateIndexBuffer()
 {
+	auto indices = pmdModel_->GetIndexData();
 	// 確保する領域(heap)に関する設定
 	D3D12_HEAP_PROPERTIES heapProp = {};
 	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -132,7 +134,7 @@ void Dx12Wrapper::CreateIndexBuffer()
 	// 確保する用途(Resource)に関する設定
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Width = indices_.size() * sizeof(indices_[0]);	// インデックス配列のサイズ
+	resDesc.Width = vertices_.size() * sizeof(vertices_[0]);	// インデックス配列のサイズ
 	resDesc.Height = 1;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.MipLevels = 1;
@@ -151,16 +153,17 @@ void Dx12Wrapper::CreateIndexBuffer()
 	assert(SUCCEEDED(result));
 
 	//インデックスデータ転送
-	unsigned short* mappedData = nullptr;
+	auto forType = indices.back();
+	decltype(forType)* mappedData = nullptr;
 	result = indexBuffer_->Map(0, nullptr, (void**)&mappedData);
 	assert(SUCCEEDED(result));
-	std::copy(indices_.begin(), indices_.end(), mappedData);
+	std::copy(indices.begin(), indices.end(), mappedData);
 	indexBuffer_->Unmap(0, nullptr);
 
 	// インデックスビュー
 	ibView_.BufferLocation = indexBuffer_->GetGPUVirtualAddress();
 	ibView_.Format = DXGI_FORMAT_R16_UINT;
-	ibView_.SizeInBytes = indices_.size() * sizeof(indices_[0]);
+	ibView_.SizeInBytes = indices.size() * sizeof(indices[0]);
 }
 
 bool Dx12Wrapper::CreateTexture()
@@ -265,15 +268,15 @@ bool Dx12Wrapper::CreateBasicDescriptors()
 		heapPos);
 
 	heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	auto cbDesc = constantBuffer_->GetDesc();
+	auto cbDesc = transformBuffer_->GetDesc();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = constantBuffer_->GetGPUVirtualAddress();
+	cbvDesc.BufferLocation = transformBuffer_->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = cbDesc.Width;
 	dev_->CreateConstantBufferView(&cbvDesc, heapPos);
 	return true;
 }
 
-bool Dx12Wrapper::CreateConstantBuffer()
+bool Dx12Wrapper::CreateTransformBuffer()
 {
 	// 確保する領域(heap)に関する設定
 	D3D12_HEAP_PROPERTIES heapProp = {};
@@ -300,7 +303,7 @@ bool Dx12Wrapper::CreateConstantBuffer()
 		&resDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&constantBuffer_));
+		IID_PPV_ARGS(&transformBuffer_));
 	assert(SUCCEEDED(result));
 
 	auto wSize = Application::GetInstance().GetWindowSize();
@@ -331,8 +334,8 @@ bool Dx12Wrapper::CreateConstantBuffer()
 	auto up = XMFLOAT3(0, 1, 0);
 	tmpMat *= XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));*/
 	XMMATRIX viewproj = XMMatrixLookAtRH(
-		{ 0.0f, 100.0f, 300.0f, 1.0f },	// 視点
-		{ 0.0f, 0.0f, 0.0f, 1.0f },		// 注視店
+		{ 0.0f, 10.0f, 20.0f, 1.0f },	// 視点
+		{ 0.0f, 10.0f, 0.0f, 1.0f },		// 注視店
 		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
 
 	// プロジェクション行列(パースペクティブ行列or射影行列)
@@ -342,11 +345,89 @@ bool Dx12Wrapper::CreateConstantBuffer()
 		300.0f);	//　ファー(遠い)
 
 	// 後でいじるために開けっ放しにしておく
-	constantBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
+	transformBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
 	
 	mappedBasicMatrix_->viewproj = viewproj;
 	mappedBasicMatrix_->world = world;
 	return true;
+}
+
+bool Dx12Wrapper::CreateDepthBufferView()
+{
+	D3D12_HEAP_PROPERTIES heapProp = { };
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 0;
+	heapProp.VisibleNodeMask = 0;
+
+	auto rtvDesc = bbResouces[0]->GetDesc();
+
+	D3D12_RESOURCE_DESC resDesc = {};
+	resDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resDesc.DepthOrArraySize = 1;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	resDesc.MipLevels = 1;
+	resDesc.Width = rtvDesc.Width;
+	resDesc.Height = rtvDesc.Height;
+	resDesc.SampleDesc.Count = 1;
+	resDesc.SampleDesc.Quality = 0;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+	clearValue.DepthStencil.Depth = 1.0f;
+	auto result = dev_->CreateCommittedResource(&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&clearValue,
+		IID_PPV_ARGS(&depthBuffer_));
+	assert(SUCCEEDED(result));
+
+
+	D3D12_DESCRIPTOR_HEAP_DESC desDesc = {};
+	desDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	desDesc.NumDescriptors = 1;
+	desDesc.NodeMask = 0;
+	desDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	result = dev_->CreateDescriptorHeap(&desDesc,
+		IID_PPV_ARGS(&depthDescHeap_));
+	assert(SUCCEEDED(result));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Texture2D.MipSlice = 0;
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	dev_->CreateDepthStencilView(depthBuffer_,
+		&dsvDesc,
+		depthDescHeap_->GetCPUDescriptorHandleForHeapStart());
+	return true;
+}
+
+bool Dx12Wrapper::CreateMaterialBufferView()
+{
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+
+	auto mats = pmdModel_->GetMaterialData();
+
+	D3D12_RESOURCE_DESC resDesc = {};
+	
+	resDesc.Width = mats.size() * AligndValue(sizeof(mats[0]), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+
+	dev_->CreateCommittedResource(&heapProp, 
+		D3D12_HEAP_FLAG_NONE, 
+		&resDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&materialBuffer_));
+	return false;
 }
 
 bool Dx12Wrapper::CreatePipelineState()
@@ -359,6 +440,10 @@ bool Dx12Wrapper::CreatePipelineState()
 		// 頂点情報
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 
 		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		// 頂点情報
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+		D3D12_APPEND_ALIGNED_ELEMENT,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		// UV情報
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
@@ -385,7 +470,7 @@ bool Dx12Wrapper::CreatePipelineState()
 	plsDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
 
 	// ラスタライザ設定
-	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	plsDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	plsDesc.RasterizerState.DepthClipEnable = false;
 	plsDesc.RasterizerState.SlopeScaledDepthBias = 0.0f;
@@ -408,7 +493,10 @@ bool Dx12Wrapper::CreatePipelineState()
 
 	// その他設定
 	// デプスとステンシル設定
-	plsDesc.DepthStencilState.DepthEnable = false;
+	plsDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	plsDesc.DepthStencilState.DepthEnable = true;
+	plsDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	plsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;	
 	plsDesc.DepthStencilState.StencilEnable = false;
 
 	plsDesc.NodeMask = 0;
@@ -540,13 +628,15 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	
 	pmdModel_ = make_shared<PMDModel>();
 	pmdModel_->Load("Resource/PMD/model/初音ミク.pmd");
-
+	vertices_ = pmdModel_->GetVertexData();
 	CreateSwapChain(hwnd);
 	
 	CreateFence();
 
 	// レンダーターゲットを作成
 	CreateRenderTargetDescriptorHeap();
+	// 深度バッファビュー作成
+	CreateDepthBufferView();
 
 	//// 頂点バッファを作成
 	CreateVertices();
@@ -556,7 +646,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	CreateIndexBuffer();
 
 	// 定数バッファ作成
-	CreateConstantBuffer();
+	CreateTransformBuffer();
 	// テクスチャ作成
 	CreateTexture();
 	CreateBasicDescriptors();
@@ -612,8 +702,9 @@ bool Dx12Wrapper::Update()
 	}
 	angle += 0.02;
 	mappedBasicMatrix_->world = XMMatrixRotationY(angle);
-	mappedBasicMatrix_->world *= XMMatrixRotationX(angle);
-	//mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
+	//mappedBasicMatrix_->world *= XMMatrixRotationX(angle);
+	mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
+
 	// リソースバリアを設定プレゼントからレンダーターゲット
 	auto bbIdx = swapchain_->GetCurrentBackBufferIndex();
 	D3D12_RESOURCE_BARRIER barrier = {};
@@ -628,10 +719,13 @@ bool Dx12Wrapper::Update()
 	auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	rtvHeap.ptr += bbIdx * rtvIncSize;
-	cmdList_->OMSetRenderTargets(1, &rtvHeap, false, nullptr);
+	cmdList_->OMSetRenderTargets(1, &rtvHeap, false, &depthDescHeap_->GetCPUDescriptorHandleForHeapStart());
 	// 画面をクリア(色変える)
 	float clsCol[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	cmdList_->ClearRenderTargetView(rtvHeap, clsCol, 0, nullptr);
+	cmdList_->ClearDepthStencilView(
+		depthDescHeap_->GetCPUDescriptorHandleForHeapStart(),
+		D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 
 	cmdList_->SetGraphicsRootSignature(rootSig_);
 	// ビューポートとシザー矩形の設定
@@ -644,9 +738,23 @@ bool Dx12Wrapper::Update()
 	// 三角形描画
 	cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList_->IASetVertexBuffers(0, 1, &vbView_);
-	//cmdList_->DrawInstanced(4, 1, 0, 0);
+	//cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
 	cmdList_->IASetIndexBuffer(&ibView_);
-	cmdList_->DrawIndexedInstanced(indices_.size(), 1, 0, 0, 0);
+	auto material = pmdModel_->GetMaterialData();
+	uint32_t indexOffset = 0;
+	for (auto& m : material)
+	{
+		auto indexNum = m.indexNum;
+		mappedBasicMatrix_->diffuse = m.diffuse;
+		cmdList_->DrawIndexedInstanced(
+			indexNum,		// インデックス数
+			1,				// インスタンス数
+			indexOffset,	// インデックスオフセット
+			0,				// 頂点オフセット
+			0);				// インスタンスオフセット
+		indexOffset += indexNum;
+	}
+	
 
 	// リソースバリアを設定レンダーターゲットからプレゼント
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;

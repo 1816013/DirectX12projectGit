@@ -21,8 +21,6 @@ public:
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool Init(HWND hwnd);
 
-	
-
 	/// <summary>
 	/// DirectX12の更新を行う
 	/// </summary>
@@ -100,10 +98,22 @@ private:
 	bool CreateBasicDescriptors();
 
 	/// <summary>
-	/// 定数バッファの作成
+	/// 座標変換バッファの作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateConstantBuffer();
+	bool CreateTransformBuffer();
+
+	/// <summary>
+	/// 深度バッファビュー作成
+	/// </summary>
+	/// <returns></returns>
+	bool CreateDepthBufferView();
+
+	/// <summary>
+	/// マテリアルバッファビュー作成
+	/// </summary>
+	/// <returns></returns>
+	bool CreateMaterialBufferView();
 
 	/// <summary>
 	/// エラー情報を出力に表示
@@ -120,14 +130,15 @@ private:
 	
 	std::vector<ID3D12Resource*> bbResouces = {};	// 裏画面リソース
 
-	ID3D12DescriptorHeap* rtvHeap_ = nullptr;
+	ID3D12DescriptorHeap* rtvHeap_ = nullptr;	// レンダーターゲットビューヒープ
 	ID3D12Fence1* fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
 	uint64_t fenceValue_ = 0;
 
-	// バッファ
-	ID3D12Resource* vertexBuffer_ = nullptr;	// 頂点バッファ
+	// 頂点バッファ
+	ID3D12Resource* vertexBuffer_ = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW vbView_ = {};	// 頂点バッファビュー
-	ID3D12Resource* indexBuffer_ = nullptr;	// インデックスバッファ
+	// インデックスバッファ
+	ID3D12Resource* indexBuffer_ = nullptr;
 	D3D12_INDEX_BUFFER_VIEW ibView_ = {};	// インデックスバッファビュー
 
 	// パイプライン
@@ -149,17 +160,31 @@ private:
 	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用デスクリプタヒープ
 	// テクスチャ
 	ID3D12Resource* texBuffer_;	// テクスチャリソース
-	// 定数バッファ
-	ID3D12Resource* constantBuffer_;	// 定数バッファ
 
+	// 基本マテリアル
 	struct BasicMatrix
 	{
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX viewproj;
+		DirectX::XMFLOAT3 diffuse;
 	};
+	// map中の基本マテリアル
 	BasicMatrix* mappedBasicMatrix_;
 
-
+	// PMDモデル
 	std::shared_ptr<PMDModel> pmdModel_;
+
+	// 定数バッファ
+	ID3D12Resource* transformBuffer_;	// 定数バッファ
+
+	// 深度バッファ
+	ID3D12Resource* depthBuffer_;
+	ID3D12DescriptorHeap* depthDescHeap_;
+
+	// マテリアルバッファ
+	ID3D12Resource* materialBuffer_;			// マテリアル用バッファ
+	ID3D12DescriptorHeap* materialDescHeap_;	// マテリアル用デスクリプタヒープ
+	
+	
 };
 
