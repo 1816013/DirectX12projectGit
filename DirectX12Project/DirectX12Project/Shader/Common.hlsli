@@ -2,7 +2,14 @@ cbuffer Matrix:register(b0)
 {
 	matrix world;	// ワールド行列
 	matrix viewproj;	// カメラ行列
-	float3 diffuse;	// ディフューズ色
+}
+
+// ピクセルシェーダからのみ見える
+cbuffer Material:register(b1)
+{
+	float4 diffuse;	// ディフューズ色
+	float4 speqular;	// スペキュラ色
+	float4 ambient;	// アンビエント色
 
 }
 

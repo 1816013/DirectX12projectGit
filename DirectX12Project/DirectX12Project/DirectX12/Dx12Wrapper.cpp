@@ -241,7 +241,7 @@ bool Dx12Wrapper::CreateTexture()
 
 bool Dx12Wrapper::CreateBasicDescriptors()
 {
-	// SRV用デスクリプタヒープ作成
+	// SRV用ディスクリプタヒープ作成
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.NumDescriptors = 2;
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -411,28 +411,80 @@ bool Dx12Wrapper::CreateDepthBufferView()
 
 bool Dx12Wrapper::CreateMaterialBufferView()
 {
+	HRESULT result = S_OK;
 	D3D12_HEAP_PROPERTIES heapProp = {};
 	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 
 	auto mats = pmdModel_->GetMaterialData();
+	auto strideBytes = AligndValue(sizeof(BasicMaterial), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
 	D3D12_RESOURCE_DESC resDesc = {};
-	
-	resDesc.Width = mats.size() * AligndValue(sizeof(mats[0]), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+	resDesc.Width = mats.size() * strideBytes;
+	resDesc.Height = 1;
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resDesc.MipLevels = 1;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resDesc.SampleDesc.Count = 1;
+	resDesc.SampleDesc.Quality = 0;
+	resDesc.DepthOrArraySize = 1;
 
-	dev_->CreateCommittedResource(&heapProp, 
+	
+	result = dev_->CreateCommittedResource(&heapProp, 
 		D3D12_HEAP_FLAG_NONE, 
 		&resDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&materialBuffer_));
-	return false;
+	assert(SUCCEEDED(result));
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = mats.size();
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	result = dev_->CreateDescriptorHeap(&heapDesc,
+		IID_PPV_ARGS(&materialDescHeap_));
+	assert(SUCCEEDED(result));
+	auto gAddress = materialBuffer_->GetGPUVirtualAddress();
+	auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto heapAddress = materialDescHeap_->GetCPUDescriptorHandleForHeapStart();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.SizeInBytes = strideBytes;
+	cbvDesc.BufferLocation = gAddress;
+	//auto forType = mats[0];
+	uint8_t* mappedMaterial = nullptr;
+
+	result = materialBuffer_->Map(0, nullptr, (void**)&mappedMaterial);
+		assert(SUCCEEDED(result));
+	for (int i = 0; i < mats.size(); ++i)
+	{		
+		((BasicMaterial*)mappedMaterial)->diffuse = mats[i].diffuse;
+		((BasicMaterial*)mappedMaterial)->ambient = mats[i].ambient;
+		((BasicMaterial*)mappedMaterial)->speqular = mats[i].speqular;
+		((BasicMaterial*)mappedMaterial)->alpha = mats[i].alpha;
+		((BasicMaterial*)mappedMaterial)->speqularity = mats[i].speqularity;
+
+		cbvDesc.BufferLocation = gAddress;
+		dev_->CreateConstantBufferView(
+			&cbvDesc,
+			heapAddress
+		);
+		mappedMaterial += strideBytes;
+		gAddress += strideBytes;
+		heapAddress.ptr += heapSize;
+	}
+	materialBuffer_->Unmap(0, nullptr);
+	return true;
 }
 
 bool Dx12Wrapper::CreatePipelineState()
 {
 	HRESULT result = S_OK;
+	// パイプラインステートデスク
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC plsDesc = {};
 	// IA(InputAssembler)
 	// 入力レイアウト
@@ -513,29 +565,50 @@ bool Dx12Wrapper::CreatePipelineState()
 	plsDesc.BlendState.RenderTarget[0].BlendEnable = false;
 	plsDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	
+	// ルートシグネチャ生成
+	CreateRootSignature(plsDesc);
 
+	vsBlob->Release();
+	psBlob->Release();
+	return true;
+}
+
+void Dx12Wrapper::CreateRootSignature(D3D12_GRAPHICS_PIPELINE_STATE_DESC& plsDesc)
+{
+	HRESULT result = S_OK;
 	// ルートシグネチャ
-	D3D12_ROOT_SIGNATURE_DESC rsd = {};
-	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rsd.NumParameters = 1;
+	D3D12_ROOT_SIGNATURE_DESC rsDesc = {};
+	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	rsDesc.NumParameters = 1;
 
-	D3D12_ROOT_PARAMETER rp[1] = {};
-	D3D12_DESCRIPTOR_RANGE range[2] = {};
+	D3D12_ROOT_PARAMETER rp[2] = {};
+	D3D12_DESCRIPTOR_RANGE range[3] = {};
+	// テクスチャ
+	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;//t
 	range[0].BaseShaderRegister = 0;	// 0 t0を表す
 	range[0].NumDescriptors = 1;		//t0~t0まで
 	range[0].OffsetInDescriptorsFromTableStart = 0;
-	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	range[1].BaseShaderRegister = 0;	// 0 t0を表す
-	range[1].NumDescriptors = 1;		//t0~t0まで
-	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	
-	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rp[0].DescriptorTable.pDescriptorRanges = range;
-	rp[0].DescriptorTable.NumDescriptorRanges = _countof(range);
+	// 行列定数バッファ
+	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;//b
+	range[1].BaseShaderRegister = 0;	// 0 b0を表す
+	range[1].NumDescriptors = 1;		//b0~b0まで
+	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	// マテリアル
+	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;//b
+	range[2].BaseShaderRegister = 1;	// 0 b1を表す
+	range[2].NumDescriptors = 1;		//b1~b1まで
+	range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	rsd.pParameters = rp;
-	rsd.NumParameters = _countof(rp);
+	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rp[0].DescriptorTable.pDescriptorRanges = &range[0];
+	rp[0].DescriptorTable.NumDescriptorRanges = 2;
+	rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rp[1].DescriptorTable.pDescriptorRanges = &range[2];
+	rp[1].DescriptorTable.NumDescriptorRanges = 1;
+
+	rsDesc.pParameters = rp;
+	rsDesc.NumParameters = _countof(rp);
 
 	// s0を定義
 	// サンプラの定義、サンプラはuvが0未満や1越えとかの時や
@@ -549,19 +622,20 @@ bool Dx12Wrapper::CreatePipelineState()
 	samplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	samplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;	
+	samplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	samplerDesc[0].MaxAnisotropy = 0.0f;
 	samplerDesc[0].MaxLOD = 0.0f;
 	samplerDesc[0].MinLOD = 0.0f;
 	samplerDesc[0].MipLODBias = 0.0f;
 
 
-	rsd.pStaticSamplers = samplerDesc;
-	rsd.NumStaticSamplers = _countof(samplerDesc);
+	rsDesc.pStaticSamplers = samplerDesc;
+	rsDesc.NumStaticSamplers = _countof(samplerDesc);
 
 	// シグネチャ設定
+	ID3DBlob* errBlob = nullptr;
 	ID3DBlob* sigBlob = nullptr;
-	D3D12SerializeRootSignature(&rsd,
+	D3D12SerializeRootSignature(&rsDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&sigBlob,
 		&errBlob);
@@ -579,10 +653,7 @@ bool Dx12Wrapper::CreatePipelineState()
 	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(&pipelineState_));
 	assert(SUCCEEDED(result));
 
-	sigBlob->Release(); 
-	vsBlob->Release();
-	psBlob->Release();
-	return true;
+	sigBlob->Release();
 }
 
 void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
@@ -641,12 +712,17 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	//// 頂点バッファを作成
 	CreateVertices();
 	CreateVertexBuffer();
+
 	// インデックスバッファを作成
 	CreateIndices();
 	CreateIndexBuffer();
 
 	// 定数バッファ作成
 	CreateTransformBuffer();
+
+	// マテリアルバッファの作成
+	CreateMaterialBufferView();
+
 	// テクスチャ作成
 	CreateTexture();
 	CreateBasicDescriptors();
@@ -733,19 +809,24 @@ bool Dx12Wrapper::Update()
 	cmdList_->RSSetScissorRects(1, &scissorRect_);
 
 	ID3D12DescriptorHeap* deskHeaps[] = {resViewHeap_};
+	auto heapPos = resViewHeap_->GetGPUDescriptorHandleForHeapStart();
 	cmdList_->SetDescriptorHeaps(1, deskHeaps);
-	cmdList_->SetGraphicsRootDescriptorTable(0, resViewHeap_->GetGPUDescriptorHandleForHeapStart());
-	// 三角形描画
+	cmdList_->SetGraphicsRootDescriptorTable(0, heapPos);
 	cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList_->IASetVertexBuffers(0, 1, &vbView_);
 	//cmdList_->DrawInstanced(vertices_.size(), 1, 0, 0);
 	cmdList_->IASetIndexBuffer(&ibView_);
 	auto material = pmdModel_->GetMaterialData();
 	uint32_t indexOffset = 0;
+
+	ID3D12DescriptorHeap* matDeskHeaps[] = { materialDescHeap_ };
+	cmdList_->SetDescriptorHeaps(1, matDeskHeaps);
+	auto materialHeapPos = materialDescHeap_->GetGPUDescriptorHandleForHeapStart();
 	for (auto& m : material)
-	{
+	{	
+		cmdList_->SetGraphicsRootDescriptorTable(1, materialHeapPos);
 		auto indexNum = m.indexNum;
-		mappedBasicMatrix_->diffuse = m.diffuse;
+
 		cmdList_->DrawIndexedInstanced(
 			indexNum,		// インデックス数
 			1,				// インスタンス数
@@ -753,6 +834,7 @@ bool Dx12Wrapper::Update()
 			0,				// 頂点オフセット
 			0);				// インスタンスオフセット
 		indexOffset += indexNum;
+		materialHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 	
 

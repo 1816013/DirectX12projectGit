@@ -13,6 +13,10 @@ struct  PMDVertex
 struct PMDMaterial
 {
 	DirectX::XMFLOAT3 diffuse;	// ディフューズ色
+	float alpha;
+	DirectX::XMFLOAT3 speqular;	// スペキュラ色
+	float speqularity;
+	DirectX::XMFLOAT3 ambient;	// アンビエント色
 	uint32_t indexNum;		// マテリアルのインデックス数
 };
 class PMDModel

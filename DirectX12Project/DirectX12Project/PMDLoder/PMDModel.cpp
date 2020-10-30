@@ -89,7 +89,14 @@ bool PMDModel::Load(const char* path)
 
 	for (auto m : materials)
 	{
-		materials_.push_back({ m.diffuse, m.indexNum });
+		PMDMaterial mat;
+		mat.diffuse = m.diffuse;
+		mat.speqular = m.specular;
+		mat.ambient = m.ambient;
+		mat.alpha = m.alpha;
+		mat.speqularity = m.specularity;
+		mat.indexNum = m.indexNum;
+		materials_.push_back(mat);
 	}
 
 

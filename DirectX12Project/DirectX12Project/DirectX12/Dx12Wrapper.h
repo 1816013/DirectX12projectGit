@@ -80,6 +80,12 @@ private:
 	bool CreatePipelineState();
 
 	/// <summary>
+	/// ルートシグネチャ生成
+	/// </summary>
+	/// <param name="plsDesc">パイプラインステートデスク</param>
+	void CreateRootSignature(D3D12_GRAPHICS_PIPELINE_STATE_DESC& plsDesc);
+
+	/// <summary>
 	/// ビューポートとシザー矩形初期化
 	/// </summary>
 	/// /// <returns>true:成功 false:失敗</returns>
@@ -92,7 +98,7 @@ private:
 	bool CreateTexture();
 
 	/// <summary>
-	/// リソースの基本的なデスクリプタ作成
+	/// リソースの基本的なディスクリプタ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
 	bool CreateBasicDescriptors();
@@ -157,7 +163,7 @@ private:
 	D3D12_RECT scissorRect_ = {};
 
 	// リソース
-	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用デスクリプタヒープ
+	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
 	// テクスチャ
 	ID3D12Resource* texBuffer_;	// テクスチャリソース
 
@@ -166,7 +172,16 @@ private:
 	{
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX viewproj;
+		
+	};
+
+	struct BasicMaterial
+	{
 		DirectX::XMFLOAT3 diffuse;
+		float alpha;
+		DirectX::XMFLOAT3 speqular;
+		float speqularity;
+		DirectX::XMFLOAT3 ambient;
 	};
 	// map中の基本マテリアル
 	BasicMatrix* mappedBasicMatrix_;
@@ -183,7 +198,7 @@ private:
 
 	// マテリアルバッファ
 	ID3D12Resource* materialBuffer_;			// マテリアル用バッファ
-	ID3D12DescriptorHeap* materialDescHeap_;	// マテリアル用デスクリプタヒープ
+	ID3D12DescriptorHeap* materialDescHeap_;	// マテリアル用ディスクリプタヒープ
 	
 	
 };
