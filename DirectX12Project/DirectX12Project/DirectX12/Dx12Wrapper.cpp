@@ -38,6 +38,8 @@ namespace
 			static_cast<int>(ret.length()));
 		return ret;
 	}
+
+
 }
 
 /// <summary>
@@ -203,8 +205,8 @@ bool Dx12Wrapper::CreateTexture(const std::wstring& path, P_Resouse_t& res)
 	heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
 	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	heapProp.CreationNodeMask = 1;
-	heapProp.VisibleNodeMask = 1;
+	heapProp.CreationNodeMask = 0;
+	heapProp.VisibleNodeMask = 0;
 
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Format = metaData.format;
@@ -291,7 +293,7 @@ bool Dx12Wrapper::CreateWhiteTexture()
 	assert(SUCCEEDED(result));
 
 	std::vector<uint8_t>data(4 * 4 * 4);
-	std::fill(data.begin(), data.end(), 0xff);
+	std::fill(data.begin(), data.end(), 0xff);	// 全部0xffで初期化
 	// データ転送
 	result = whiteTex_->WriteToSubresource(
 		0, 
@@ -315,25 +317,6 @@ bool Dx12Wrapper::CreateBasicDescriptors()
 	auto result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resViewHeap_));
 	assert(SUCCEEDED(result));
 
-	/*auto metaData = texBuffers_->GetDesc();
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = metaData.Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.PlaneSlice = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3);
-
-	auto heapPos = resViewHeap_->GetCPUDescriptorHandleForHeapStart();
-	dev_->CreateShaderResourceView(
-		texBuffers_,
-		&srvDesc,
-		heapPos);
-		*/
-	//heapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	auto cbDesc = transformBuffer_->GetDesc();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = transformBuffer_->GetGPUVirtualAddress();
@@ -783,7 +766,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	InitCommandSet();
 	
 	pmdModel_ = make_shared<PMDModel>();
-	pmdModel_->Load("Resource/PMD/model/初音ミク.pmd");
+	pmdModel_->Load("Resource/PMD/model/巡音ルカ.pmd");
 	vertices_ = pmdModel_->GetVertexData();
 	CreateSwapChain(hwnd);
 	
@@ -824,7 +807,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	// マテリアルバッファの作成
 	CreateMaterialBufferView();
 	
-
+	// SRV用ディスクリプタヒープ作成
 	CreateBasicDescriptors();
 
 	if (!CreatePipelineState())

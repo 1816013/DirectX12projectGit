@@ -8,7 +8,20 @@ using namespace std;
 
 namespace
 {
+	string GetExtension(const string& path)
+	{
+		int idx = path.rfind(".");
+		return path.substr(idx + 1, path.length() - idx - 1);
+	}
 
+	pair<string, string> SplitFileName(const string& path, const char splitter = '*')
+	{
+		int idx = path.find(splitter);
+		pair<string, string>ret;
+		ret.first = path.substr(0, idx);
+		ret.second = path.substr(idx + 1, path.length() - idx - 1);
+		return ret;
+	}
 }
 
 bool PMDModel::Load(const char* path)
@@ -21,6 +34,7 @@ bool PMDModel::Load(const char* path)
 		char cerr[256];
 		strerror_s(cerr, 256, err);
 		OutputDebugStringA(cerr);
+		assert(0);
 		return false;
 	}
 	if (fp == nullptr)return false;
@@ -102,12 +116,34 @@ bool PMDModel::Load(const char* path)
 		mat.alpha = m.alpha;
 		mat.speqularity = m.specularity;
 		mat.indexNum = m.indexNum;
-		string str = m.textureFilePath;
-		if (str != "")
+		string texPath = m.textureFilePath;
+		if (texPath != "")
 		{
-			str = GetTextureFromModelAndTexPath(path,str);
+			auto namePair = SplitFileName(texPath);
+			if (count(texPath.begin(), texPath.end(), '*') > 0)
+			{
+				
+				if (GetExtension(namePair.first) == "sph" ||
+					GetExtension(namePair.first) == "spa")
+				{
+					texPath = namePair.second;
+				}
+				else
+				{
+					texPath = namePair.first;
+				}
+			}
+			if (GetExtension(namePair.first) != "sph" &&
+				GetExtension(namePair.first) != "spa")
+			{
+				texPath = GetTextureFromModelAndTexPath(path, texPath);
+			}
+			else
+			{
+				texPath = "";
+			}
 		}
-		texturePaths_.push_back(str);
+		texturePaths_.push_back(texPath);
 		materials_.push_back(mat);
 	}
 
