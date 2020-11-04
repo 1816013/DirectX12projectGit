@@ -4,6 +4,12 @@
 #include <cstdint>
 
 using namespace DirectX;
+using namespace std;
+
+namespace
+{
+
+}
 
 bool PMDModel::Load(const char* path)
 {
@@ -96,6 +102,12 @@ bool PMDModel::Load(const char* path)
 		mat.alpha = m.alpha;
 		mat.speqularity = m.specularity;
 		mat.indexNum = m.indexNum;
+		string str = m.textureFilePath;
+		if (str != "")
+		{
+			str = GetTextureFromModelAndTexPath(path,str);
+		}
+		texturePaths_.push_back(str);
 		materials_.push_back(mat);
 	}
 
@@ -118,4 +130,26 @@ const std::vector<uint16_t>& PMDModel::GetIndexData() const
 const std::vector<PMDMaterial>& PMDModel::GetMaterialData() const
 {
 	return materials_;
+}
+
+const std::vector<std::string>& PMDModel::GetTexturePaths() const
+{
+	return texturePaths_;
+}
+
+std::string PMDModel::GetTextureFromModelAndTexPath(const std::string& modelPath, const std::string& texPath)
+{
+	auto idx1 = modelPath.rfind('/');
+	if (idx1 == std::string::npos)
+	{
+		idx1 = 0;
+	}
+	auto idx2 = modelPath.rfind('\\');
+	if (idx2 == std::string::npos)
+	{
+		idx2 = 0;
+	}
+	auto pathIndex = max( idx1,idx2);
+	auto folderPath = modelPath.substr(0, pathIndex+1);
+	return folderPath + texPath;
 }

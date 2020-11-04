@@ -5,6 +5,7 @@
 #include <DirectXMath.h>
 #include <memory>
 #include "../BMPLoder/BmpLoder.h"
+#include <string>
 
 class PMDModel;
 /// <summary>
@@ -32,6 +33,26 @@ public:
 	/// </summary>
 	void Terminate();
 private:
+
+	using P_Resouse_t = ID3D12Resource*;
+	
+	// 基本行列
+	struct BasicMatrix
+	{
+		DirectX::XMMATRIX world;
+		DirectX::XMMATRIX viewproj;
+
+	};
+	// 基本マテリアル
+	struct BasicMaterial
+	{
+		DirectX::XMFLOAT3 diffuse;
+		float alpha;
+		DirectX::XMFLOAT3 speqular;
+		float speqularity;
+		DirectX::XMFLOAT3 ambient;
+	};
+
 	/// <summary>
 	/// DirectXの機能レベルを確認する
 	/// </summary>
@@ -88,14 +109,22 @@ private:
 	/// <summary>
 	/// ビューポートとシザー矩形初期化
 	/// </summary>
-	/// /// <returns>true:成功 false:失敗</returns>
+	/// <returns>true:成功 false:失敗</returns>
 	bool InitViewRect();
 
 	/// <summary>
-	/// テクスチャの作成
+	/// テクスチャの作成(DXLIBでいうLoadGraph())
+	/// </summary>
+	/// <param name="path"></param>
+	/// <param name="res"></param>
+	/// <returns>true:成功 false:失敗</returns>
+	bool CreateTexture(const std::wstring& path, P_Resouse_t& res);
+
+	/// <summary>
+	/// 白テクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateTexture();
+	bool CreateWhiteTexture();
 
 	/// <summary>
 	/// リソースの基本的なディスクリプタ作成
@@ -112,13 +141,13 @@ private:
 	/// <summary>
 	/// 深度バッファビュー作成
 	/// </summary>
-	/// <returns></returns>
+	/// <returns>true : 成功 false : 失敗</returns>
 	bool CreateDepthBufferView();
 
 	/// <summary>
 	/// マテリアルバッファビュー作成
 	/// </summary>
-	/// <returns></returns>
+	/// <returns>true : 成功 false : 失敗</returns>
 	bool CreateMaterialBufferView();
 
 	/// <summary>
@@ -126,6 +155,8 @@ private:
 	/// </summary>
 	/// <param name="errBlob">エラー情報</param>
 	void OutputFromErrorBlob(ID3DBlob* errBlob);
+
+
 
 	ID3D12Device* dev_ = nullptr;
 	ID3D12CommandAllocator* cmdAllocator_ = nullptr;
@@ -165,24 +196,9 @@ private:
 	// リソース
 	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
 	// テクスチャ
-	ID3D12Resource* texBuffer_;	// テクスチャリソース
-
-	// 基本マテリアル
-	struct BasicMatrix
-	{
-		DirectX::XMMATRIX world;
-		DirectX::XMMATRIX viewproj;
-		
-	};
-
-	struct BasicMaterial
-	{
-		DirectX::XMFLOAT3 diffuse;
-		float alpha;
-		DirectX::XMFLOAT3 speqular;
-		float speqularity;
-		DirectX::XMFLOAT3 ambient;
-	};
+	std::vector<P_Resouse_t> texBuffers_;	// テクスチャリソース
+	P_Resouse_t whiteTex_; // 白テクスチャ
+	
 	// map中の基本マテリアル
 	BasicMatrix* mappedBasicMatrix_;
 
@@ -202,4 +218,3 @@ private:
 	
 	
 };
-

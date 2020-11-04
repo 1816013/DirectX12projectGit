@@ -1,3 +1,4 @@
+// 座標変換
 cbuffer Matrix:register(b0)
 {
 	matrix world;	// ワールド行列
@@ -12,6 +13,10 @@ cbuffer Material:register(b1)
 	float4 ambient;	// アンビエント色
 
 }
+
+// テクスチャ
+Texture2D<float4>tex:register(t0);
+SamplerState smp:register(s0);
 
 // 頂点データ出力
 struct VsOutput
