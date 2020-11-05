@@ -2,26 +2,15 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <cstdint>
+#include <sstream>
+#include <iomanip>
 
 using namespace DirectX;
 using namespace std;
 
 namespace
 {
-	string GetExtension(const string& path)
-	{
-		int idx = path.rfind(".");
-		return path.substr(idx + 1, path.length() - idx - 1);
-	}
-
-	pair<string, string> SplitFileName(const string& path, const char splitter = '*')
-	{
-		int idx = path.find(splitter);
-		pair<string, string>ret;
-		ret.first = path.substr(0, idx);
-		ret.second = path.substr(idx + 1, path.length() - idx - 1);
-		return ret;
-	}
+	
 }
 
 bool PMDModel::Load(const char* path)
@@ -70,12 +59,17 @@ bool PMDModel::Load(const char* path)
 		uint32_t indexNum; // 面頂点数
 		char textureFilePath[20]; // テクスチャファイル名またはスフィアファイル名
 	};
+	struct Bone
+	{
+
+	};
 #pragma pack()
 	PMDHeader header;
 	auto readSize = fread_s(&header, sizeof(header), sizeof(header), 1, fp);
 	// プラグマパック使わない場合
 	//auto readSize = fread_s(&header.id, sizeof(header.id), sizeof(header.id), 1, fp);
 	//readSize = fread_s(&header.version, sizeof(header) - sizeof(header.id), sizeof(header)- sizeof(header.id), 1, fp);
+	// 頂点読み込み
 	uint32_t vertexCount = 0;
 	readSize = fread_s(&vertexCount, sizeof(vertexCount), sizeof(vertexCount), 1, fp);
 
@@ -99,6 +93,7 @@ bool PMDModel::Load(const char* path)
 		indices_.size() * sizeof(indices_[0]),
 		1, fp);
 
+	// マテリアル読み込み
 	uint32_t materialNum;
 	readSize = fread_s(&materialNum, sizeof(materialNum), sizeof(materialNum), 1, fp);
 	std::vector<Material>materials(materialNum);
@@ -116,38 +111,52 @@ bool PMDModel::Load(const char* path)
 		mat.alpha = m.alpha;
 		mat.speqularity = m.specularity;
 		mat.indexNum = m.indexNum;
-		string texPath = m.textureFilePath;
-		if (texPath != "")
+		texturePaths_.push_back(m.textureFilePath);
+		if (m.toonIndex != 0xff)
 		{
-			auto namePair = SplitFileName(texPath);
-			if (count(texPath.begin(), texPath.end(), '*') > 0)
-			{
-				
-				if (GetExtension(namePair.first) == "sph" ||
-					GetExtension(namePair.first) == "spa")
-				{
-					texPath = namePair.second;
-				}
-				else
-				{
-					texPath = namePair.first;
-				}
-			}
-			if (GetExtension(namePair.first) != "sph" &&
-				GetExtension(namePair.first) != "spa")
-			{
-				texPath = GetTextureFromModelAndTexPath(path, texPath);
-			}
-			else
-			{
-				texPath = "";
-			}
+			ostringstream oss;
+			oss << "toon";
+			oss << std::setfill('0');
+			oss << std::setw(2);
+			oss << m.toonIndex + 1;
+			oss << ".bmp";
+			toonPaths_.push_back(oss.str());
 		}
-		texturePaths_.push_back(texPath);
+		else
+		{
+			toonPaths_.push_back("");
+		}
+		
 		materials_.push_back(mat);
 	}
 
+	// ボーン読み込み
+	uint16_t boneNum = 0;
+	readSize = fread_s(&boneNum,
+		sizeof(boneNum),
+		sizeof(boneNum),
+		1, fp);
+	// 読み飛ばし
+	readSize = fseek(fp, 39 * boneNum, SEEK_CUR);
 
+	// IK読み込み
+	uint16_t IKNum = 0;
+	readSize = fread_s(&IKNum,
+		sizeof(IKNum),
+		sizeof(IKNum),
+		1, fp);
+
+	for (int i = 0; i < IKNum; ++i)
+	{
+		fseek(fp, 4, SEEK_CUR);
+		uint8_t chainNum = 0; 
+		readSize = fread_s(&chainNum,
+			sizeof(chainNum),
+			sizeof(chainNum),
+			1, fp);
+		fseek(fp, 6, SEEK_CUR);
+		fseek(fp, 2 * chainNum, SEEK_CUR);
+	}
 	fclose(fp);
 	return true;
 
@@ -171,6 +180,11 @@ const std::vector<PMDMaterial>& PMDModel::GetMaterialData() const
 const std::vector<std::string>& PMDModel::GetTexturePaths() const
 {
 	return texturePaths_;
+}
+
+const std::vector<std::string>& PMDModel::GetToonPaths() const
+{
+	return toonPaths_;
 }
 
 std::string PMDModel::GetTextureFromModelAndTexPath(const std::string& modelPath, const std::string& texPath)

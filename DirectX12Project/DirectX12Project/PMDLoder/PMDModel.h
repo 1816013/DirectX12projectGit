@@ -65,6 +65,12 @@ public:
 	/// <returns>テクスチャ情報</returns>
 	const std::vector<std::string>& GetTexturePaths()const;
 
+	/// <summary>
+	/// トゥーンファイルパス取得
+	/// </summary>
+	/// <returns>トゥーンファイルパス</returns>
+	const std::vector<std::string>& GetToonPaths()const;
+
 private:
 	std::string GetTextureFromModelAndTexPath(const std::string& modelPath,
 		const std::string&);
@@ -73,6 +79,7 @@ private:
 	std::vector<uint16_t>indices_;
 	std::vector<PMDMaterial>materials_;
 	std::vector<std::string>texturePaths_;
+	std::vector<std::string>toonPaths_;
 	
 };
 

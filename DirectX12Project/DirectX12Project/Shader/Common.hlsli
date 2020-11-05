@@ -15,8 +15,12 @@ cbuffer Material:register(b1)
 }
 
 // テクスチャ
-Texture2D<float4>tex:register(t0);
+Texture2D<float4>tex:register(t0);	// 通常テクスチャ
+Texture2D<float4>sph:register(t1);	// 乗算スフィアマップ
+Texture2D<float4>spa:register(t2);	// 加算スフィアマップ
+Texture2D<float4>toon:register(t3);	// 加算スフィアマップ
 SamplerState smp:register(s0);
+SamplerState toonSmp:register(s1);
 
 // 頂点データ出力
 struct VsOutput

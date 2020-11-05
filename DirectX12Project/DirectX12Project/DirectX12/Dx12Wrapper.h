@@ -121,10 +121,16 @@ private:
 	bool CreateTexture(const std::wstring& path, P_Resouse_t& res);
 
 	/// <summary>
-	/// 白テクスチャ作成
+	/// 白と黒のテクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateWhiteTexture();
+	bool CreateMonoTexture();
+	
+	/// <summary>
+	/// グラデーションテクスチャ作成
+	/// </summary>
+	/// <returns>true:成功 false:失敗</returns>
+	bool CreateGradationTexture();
 
 	/// <summary>
 	/// リソースの基本的なディスクリプタ作成
@@ -155,8 +161,6 @@ private:
 	/// </summary>
 	/// <param name="errBlob">エラー情報</param>
 	void OutputFromErrorBlob(ID3DBlob* errBlob);
-
-
 
 	ID3D12Device* dev_ = nullptr;
 	ID3D12CommandAllocator* cmdAllocator_ = nullptr;
@@ -197,7 +201,14 @@ private:
 	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
 	// テクスチャ
 	std::vector<P_Resouse_t> texBuffers_;	// テクスチャリソース
+	std::vector<P_Resouse_t> sphBuffers_;	// sphテクスチャリソース
+	std::vector<P_Resouse_t> spaBuffers_;	// sphテクスチャリソース
+	std::vector<P_Resouse_t> toonBuffers_;	// toonテクスチャリソース
 	P_Resouse_t whiteTex_; // 白テクスチャ
+	P_Resouse_t blackTex_; // 黒テクスチャ
+	P_Resouse_t gradTex_; // グラデーションテクスチャ
+
+
 	
 	// map中の基本マテリアル
 	BasicMatrix* mappedBasicMatrix_;

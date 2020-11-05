@@ -39,7 +39,61 @@ namespace
 		return ret;
 	}
 
+	/// <summary>
+	/// 拡張子抽出
+	/// </summary>
+	/// <param name="paths">抽出元のパス</param>
+	/// <returns>抽出された拡張子</returns>
+	string GetExtension(const string& path)
+	{
+		int idx = path.rfind(".");
+		if (idx == string::npos)
+		{
+			return "";
+		}
+		idx++;
+		return path.substr(idx, path.length() - idx);
+	}
 
+	/// <summary>
+	/// テクスチャのパスをセパレータ文字で分離する
+	/// </summary>
+	/// <param name="paths">パス文字列</param>
+	/// <param name="splitter">セパレータ文字</param>
+	/// <returns>分離後の文字列ペア</returns>
+	vector<string> SplitFileName(const string& path, const char splitter = '*')
+	{
+		int idx = path.find(splitter);
+		vector<string>ret;
+		if (idx == string::npos)
+		{
+			ret.push_back(path);
+
+			return ret;
+		}
+
+		ret.push_back(path.substr(0, idx));
+		idx++;
+		ret.push_back(path.substr(idx, path.length() - idx));
+		return ret;
+	}
+
+	std::string GetTextureFromModelAndTexPath(const std::string& modelPath, const std::string& texPath)
+	{
+		auto idx1 = modelPath.rfind('/');
+		if (idx1 == std::string::npos)
+		{
+			idx1 = 0;
+		}
+		auto idx2 = modelPath.rfind('\\');
+		if (idx2 == std::string::npos)
+		{
+			idx2 = 0;
+		}
+		auto pathIndex = max(idx1, idx2);
+		auto folderPath = modelPath.substr(0, pathIndex + 1);
+		return folderPath + texPath;
+	}
 }
 
 /// <summary>
@@ -198,6 +252,10 @@ bool Dx12Wrapper::CreateTexture(const std::wstring& path, P_Resouse_t& res)
 	TexMetadata metaData= {};
 	ScratchImage scratchImg = {};
 	result = LoadFromWICFile(path.c_str(), WIC_FLAGS_IGNORE_SRGB, &metaData, scratchImg);
+	if (FAILED(result))
+	{
+		return false;
+	}
 	assert(SUCCEEDED(result));
 	auto img = scratchImg.GetImage(0, 0, 0);// 生データ抽出
 
@@ -262,7 +320,7 @@ bool Dx12Wrapper::CreateTexture(const std::wstring& path, P_Resouse_t& res)
 	return true;
 }
 
-bool Dx12Wrapper::CreateWhiteTexture()
+bool Dx12Wrapper::CreateMonoTexture()
 {
 	HRESULT result = S_OK;
 	D3D12_HEAP_PROPERTIES heapProp = {};
@@ -284,6 +342,7 @@ bool Dx12Wrapper::CreateWhiteTexture()
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
+	// 白テクスチャ
 	result = dev_->CreateCommittedResource(&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
@@ -302,12 +361,90 @@ bool Dx12Wrapper::CreateWhiteTexture()
 		4 * 4, 
 		static_cast<UINT>(data.size()));
 
+	// 黒テクスチャ
+	struct Color
+	{
+		uint8_t r, g, b, a;
+		Color() :r(0), g(0), b(0), a(0) {};
+		Color(uint8_t inr, uint8_t ing, uint8_t inb, uint8_t ina) :
+			r(inr), g(ing), b(inb), a(inr) {}
+	};
+	result = dev_->CreateCommittedResource(&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&blackTex_));
+	assert(SUCCEEDED(result));
+	std::vector<Color>blackData(4 * 4);
+	std::fill(blackData.begin(), blackData.end(), Color(0, 0, 0, 0xff));	// 全部0x00で初期化
+	// データ転送
+	result = blackTex_->WriteToSubresource(
+		0,
+		nullptr,
+		blackData.data(),
+		4 * 4,
+		static_cast<UINT>(blackData.size()));
+
+	return true;
+}
+
+bool Dx12Wrapper::CreateGradationTexture()
+{
+	HRESULT result = S_OK;
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	heapProp.CreationNodeMask = 0;
+	heapProp.VisibleNodeMask = 0;
+
+	D3D12_RESOURCE_DESC resDesc = {};
+	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	resDesc.Width = 4;
+	resDesc.Height = 256;
+	resDesc.DepthOrArraySize = 1;
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resDesc.MipLevels = 1;
+	resDesc.SampleDesc.Count = 1;
+	resDesc.SampleDesc.Quality = 0;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	// グラデーションテクスチャ(下が黒、上が白)
+	result = dev_->CreateCommittedResource(&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&gradTex_));
+	assert(SUCCEEDED(result));
+	struct Color
+	{
+		uint8_t r, g, b, a;
+		Color() :r(0), g(0), b(0), a(0) {};
+		Color(uint8_t inr, uint8_t ing, uint8_t inb, uint8_t ina) :
+			r(inr), g(ing), b(inb), a(inr) {}
+	};
+	std::vector<Color>gradData(4 * 256);
+	for (size_t i = 0; i < 256; ++i)
+	{
+		fill_n(&gradData[i * 4], 4, Color(255 - i, 255 - i, 255 - i, 0xff));	// 全部0x00で初期化
+	}
+	
+	// データ転送
+	result = gradTex_->WriteToSubresource(
+		0,
+		nullptr,
+		gradData.data(),
+		4 * 4,
+		4 * 4 * 256);
 	return true;
 }
 
 bool Dx12Wrapper::CreateBasicDescriptors()
 {
-	// SRV用ディスクリプタヒープ作成
+	//// SRV用ディスクリプタヒープ作成
 	// 座標変換用ディスクリプタヒープ
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.NumDescriptors = 1;
@@ -486,7 +623,9 @@ bool Dx12Wrapper::CreateMaterialBufferView()
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = static_cast<UINT>(mats.size() + texBuffers_.size());
+	// マテリアルCBV + 通常SRV + 乗算スフィアマップSRV 
+	// +  加算スフィアマップSRV + toonマップ 
+	heapDesc.NumDescriptors = static_cast<UINT>(mats.size() * 5); 
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 	result = dev_->CreateDescriptorHeap(&heapDesc,
@@ -533,13 +672,50 @@ bool Dx12Wrapper::CreateMaterialBufferView()
 		heapAddress.ptr += heapSize;
 
 		// テクスチャビュー
-		auto texBuffer = whiteTex_;
+		// フォーマット初期化忘れないように
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		if (texBuffers_[i] != nullptr)
 		{
-			texBuffer = texBuffers_[i];
 			srvDesc.Format = texBuffers_[i]->GetDesc().Format;
 		}
-		dev_->CreateShaderResourceView(texBuffer,
+		dev_->CreateShaderResourceView(
+			texBuffers_[i] != nullptr? texBuffers_[i] : whiteTex_,
+			&srvDesc,
+			heapAddress);
+		heapAddress.ptr += heapSize;
+
+		// 乗算スフィアマップ
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		if (sphBuffers_[i] != nullptr)
+		{
+			srvDesc.Format = sphBuffers_[i]->GetDesc().Format;
+		}		
+		dev_->CreateShaderResourceView(
+			sphBuffers_[i] != nullptr ? sphBuffers_[i] : whiteTex_,
+			&srvDesc,
+			heapAddress);
+		heapAddress.ptr += heapSize;
+		
+		// 加算スフィアマップ
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		if (spaBuffers_[i] != nullptr)
+		{
+			srvDesc.Format = spaBuffers_[i]->GetDesc().Format;
+		}		
+		dev_->CreateShaderResourceView(
+			spaBuffers_[i] != nullptr ? spaBuffers_[i] : blackTex_,
+			&srvDesc,
+			heapAddress);
+		heapAddress.ptr += heapSize;
+
+		// 加算スフィアマップ
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		if (toonBuffers_[i] != nullptr)
+		{
+			srvDesc.Format = toonBuffers_[i]->GetDesc().Format;
+		}
+		dev_->CreateShaderResourceView(
+			toonBuffers_[i] != nullptr ? toonBuffers_[i] : gradTex_,
 			&srvDesc,
 			heapAddress);
 		heapAddress.ptr += heapSize;
@@ -653,17 +829,17 @@ void Dx12Wrapper::CreateRootSignature(D3D12_GRAPHICS_PIPELINE_STATE_DESC& plsDes
 	// 行列定数バッファ
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;//b
 	range[0].BaseShaderRegister = 0;	// 0 b0を表す
-	range[0].NumDescriptors = 1;		//b0~b0まで
+	range[0].NumDescriptors = 1;		//b0～b0まで
 	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	// マテリアル
 	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;//b
 	range[1].BaseShaderRegister = 1;	// 0 b1を表す
-	range[1].NumDescriptors = 1;		//b1~b1まで
+	range[1].NumDescriptors = 1;		//b1～b1まで
 	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	// テクスチャ
 	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;//t
 	range[2].BaseShaderRegister = 0;	// 0 t0を表す
-	range[2].NumDescriptors = 1;		//t0~t0まで
+	range[2].NumDescriptors = 4;		//t0～t3まで
 	range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// 座標変換
@@ -681,7 +857,7 @@ void Dx12Wrapper::CreateRootSignature(D3D12_GRAPHICS_PIPELINE_STATE_DESC& plsDes
 	// s0を定義
 	// サンプラの定義、サンプラはuvが0未満や1越えとかの時や
 	// UVをもとに色をとってくるときのルールを指定するもの
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
 	samplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	samplerDesc[0].ShaderRegister = 0;
 	samplerDesc[0].RegisterSpace = 0;
@@ -695,6 +871,11 @@ void Dx12Wrapper::CreateRootSignature(D3D12_GRAPHICS_PIPELINE_STATE_DESC& plsDes
 	samplerDesc[0].MaxLOD = 0.0f;
 	samplerDesc[0].MinLOD = 0.0f;
 	samplerDesc[0].MipLODBias = 0.0f;
+	samplerDesc[1] = samplerDesc[0];	// まずコピー
+	samplerDesc[1].ShaderRegister = 1;
+	samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 
 
 	rsDesc.pStaticSamplers = samplerDesc;
@@ -766,7 +947,8 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	InitCommandSet();
 	
 	pmdModel_ = make_shared<PMDModel>();
-	pmdModel_->Load("Resource/PMD/model/巡音ルカ.pmd");
+	const char* modelPath = "Resource/PMD/我那覇響v1.0/我那覇響v1.pmd";
+	pmdModel_->Load(modelPath);
 	vertices_ = pmdModel_->GetVertexData();
 	CreateSwapChain(hwnd);
 	
@@ -777,7 +959,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	// 深度バッファビュー作成
 	CreateDepthBufferView();
 
-	//// 頂点バッファを作成
+	// 頂点バッファを作成
 	CreateVertices();
 	CreateVertexBuffer();
 
@@ -789,25 +971,63 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	CreateTransformBuffer();
 
 	// テクスチャ作成
-	auto& path = pmdModel_->GetTexturePaths();
-	texBuffers_.resize(path.size());
-	for (int i = 0; i < path.size(); ++i)
+	auto& paths = pmdModel_->GetTexturePaths();
+	auto& toonPaths = pmdModel_->GetToonPaths();
+	texBuffers_.resize(paths.size());
+	sphBuffers_.resize(paths.size());
+	spaBuffers_.resize(paths.size());
+	toonBuffers_.resize(toonPaths.size());
+	for (int i = 0; i < paths.size(); ++i)
 	{
-		if (path[i] == "")
+		if (toonPaths[i] != "")
+		{
+			string strToonPath = "Resource/PMD/toon/" + toonPaths[i];
+			CreateTexture(
+				GetWideStringfromString(strToonPath),
+				toonBuffers_[i]);
+		}
+		if (paths[i] == "")
 		{
 			continue;
 		}
-		CreateTexture(
-		GetWideStringfromString(path[i]),
-			texBuffers_[i]);
+		
+		auto pathVec = SplitFileName(paths[i]);
+		for (auto path : pathVec)
+		{
+			auto ext = GetExtension(path);
+			if (ext == "spa")
+			{
+				auto str = GetTextureFromModelAndTexPath(modelPath, path);
+				CreateTexture(
+					GetWideStringfromString(str),
+					spaBuffers_[i]);
+				continue;
+			}
+			if (ext == "sph")
+			{
+				auto str = GetTextureFromModelAndTexPath(modelPath, path);
+				CreateTexture(
+					GetWideStringfromString(str),
+					sphBuffers_[i]);
+				continue;
+			}
+			auto str = GetTextureFromModelAndTexPath(modelPath, path);
+			CreateTexture(
+				GetWideStringfromString(str),
+				texBuffers_[i]);
+			
+		}
 	}
-	// 白テクスチャ作成
-	CreateWhiteTexture();
+	// 白黒テクスチャ作成
+	CreateMonoTexture();
+
+	CreateGradationTexture();
+	//CreateMonoTexture(blackTex_, true);
 
 	// マテリアルバッファの作成
 	CreateMaterialBufferView();
 	
-	// SRV用ディスクリプタヒープ作成
+	// 座標変換SRV用ディスクリプタヒープ作成
 	CreateBasicDescriptors();
 
 	if (!CreatePipelineState())
@@ -918,7 +1138,7 @@ bool Dx12Wrapper::Update()
 			0,				// 頂点オフセット
 			0);				// インスタンスオフセット
 		indexOffset += indexNum;
-		materialHeapPos.ptr += static_cast<UINT64>(heapSize) * 2;
+		materialHeapPos.ptr += static_cast<UINT64>(heapSize) * 5;
 	}
 	
 
