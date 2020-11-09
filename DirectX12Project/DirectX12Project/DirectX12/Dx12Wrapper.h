@@ -4,8 +4,10 @@
 #include <vector>
 #include <DirectXMath.h>
 #include <memory>
-#include "../BMPLoder/BmpLoder.h"
 #include <string>
+#include <d3dx12.h>
+
+using Microsoft::WRL::ComPtr;
 
 class PMDModel;
 /// <summary>
@@ -34,7 +36,7 @@ public:
 	void Terminate();
 private:
 
-	using P_Resouse_t = ID3D12Resource*;
+
 	
 	// 基本行列
 	struct BasicMatrix
@@ -70,7 +72,7 @@ private:
 	/// </summary>
 	/// <param name="hwnd">ウインドウハンドル</param>
 	/// <returns>true : 成功 false : 失敗</returns>
-	bool CreateSwapChain(const HWND hwnd);
+	bool CreateSwapChain(const HWND& hwnd);
 
 	/// <summary>
 	/// フェンス作成(スレッドセーフに必要)
@@ -111,6 +113,8 @@ private:
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
 	bool InitViewRect();
+
+	using P_Resouse_t = ID3D12Resource*;
 
 	/// <summary>
 	/// テクスチャの作成(DXLIBでいうLoadGraph())
@@ -162,35 +166,37 @@ private:
 	/// <param name="errBlob">エラー情報</param>
 	void OutputFromErrorBlob(ID3DBlob* errBlob);
 
-	ID3D12Device* dev_ = nullptr;
-	ID3D12CommandAllocator* cmdAllocator_ = nullptr;
-	ID3D12GraphicsCommandList* cmdList_ = nullptr;	
-	ID3D12CommandQueue* cmdQue_ = nullptr;	
-	IDXGIFactory7* dxgi_ = nullptr;
-	IDXGISwapChain4* swapchain_ = nullptr;
-	
-	std::vector<ID3D12Resource*> bbResouces = {};	// 裏画面リソース
+	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_UPLOAD);
 
-	ID3D12DescriptorHeap* rtvHeap_ = nullptr;	// レンダーターゲットビューヒープ
-	ID3D12Fence1* fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
+	ComPtr<ID3D12Device> dev_ = nullptr;
+	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
+	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;
+	ComPtr<ID3D12CommandQueue> cmdQue_ = nullptr;
+	ComPtr<IDXGIFactory7> dxgi_ = nullptr;
+	ComPtr<IDXGISwapChain4> swapchain_ = nullptr;
+	
+	std::vector<ComPtr<ID3D12Resource>> bbResouces = {};	// 裏画面リソース
+
+	ComPtr<ID3D12DescriptorHeap> rtvHeap_ = nullptr;	// レンダーターゲットビューヒープ
+	ComPtr<ID3D12Fence1> fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
 	uint64_t fenceValue_ = 0;
 
 	// 頂点バッファ
-	ID3D12Resource* vertexBuffer_ = nullptr;
+	ComPtr<ID3D12Resource> vertexBuffer_ = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW vbView_ = {};	// 頂点バッファビュー
 	// インデックスバッファ
-	ID3D12Resource* indexBuffer_ = nullptr;
+	ComPtr<ID3D12Resource> indexBuffer_ = nullptr;
 	D3D12_INDEX_BUFFER_VIEW ibView_ = {};	// インデックスバッファビュー
 
 	// パイプライン
-	ID3D12PipelineState* pipelineState_ = nullptr;
+	ComPtr<ID3D12PipelineState> pipelineState_ = nullptr;
 
 	// シェーダ
-	ID3D10Blob* vertexShader_ = nullptr;
-	ID3D10Blob* pixelShader_ = nullptr;
+	ComPtr<ID3D10Blob> vertexShader_ = nullptr;
+	ComPtr<ID3D10Blob> pixelShader_ = nullptr;
 
 	//ルートシグネチャ
-	ID3D12RootSignature* rootSig_ = nullptr;// ルートシグネクチャ
+	ComPtr<ID3D12RootSignature> rootSig_ = nullptr;// ルートシグネクチャ
 
 	// ビューポート
 	D3D12_VIEWPORT viewPort_ = {};
@@ -198,34 +204,34 @@ private:
 	D3D12_RECT scissorRect_ = {};
 
 	// リソース
-	ID3D12DescriptorHeap* resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
+	ComPtr<ID3D12DescriptorHeap> resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
 	// テクスチャ
-	std::vector<P_Resouse_t> texBuffers_;	// テクスチャリソース
-	std::vector<P_Resouse_t> sphBuffers_;	// sphテクスチャリソース
-	std::vector<P_Resouse_t> spaBuffers_;	// sphテクスチャリソース
-	std::vector<P_Resouse_t> toonBuffers_;	// toonテクスチャリソース
-	P_Resouse_t whiteTex_; // 白テクスチャ
-	P_Resouse_t blackTex_; // 黒テクスチャ
-	P_Resouse_t gradTex_; // グラデーションテクスチャ
+	std::vector<ComPtr<ID3D12Resource>> texBuffers_;	// テクスチャリソース
+	std::vector<ComPtr<ID3D12Resource>> sphBuffers_;	// sphテクスチャリソース
+	std::vector<ComPtr<ID3D12Resource>> spaBuffers_;	// sphテクスチャリソース
+	std::vector<ComPtr<ID3D12Resource>> toonBuffers_;	// toonテクスチャリソース
+	ComPtr<ID3D12Resource> whiteTex_; // 白テクスチャ
+	ComPtr<ID3D12Resource> blackTex_; // 黒テクスチャ
+	ComPtr<ID3D12Resource> gradTex_; // グラデーションテクスチャ
 
 
 	
 	// map中の基本マテリアル
-	BasicMatrix* mappedBasicMatrix_;
+	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;
 
 	// PMDモデル
 	std::shared_ptr<PMDModel> pmdModel_;
 
 	// 定数バッファ
-	ID3D12Resource* transformBuffer_;	// 定数バッファ
+	ComPtr<ID3D12Resource> transformBuffer_;	// 定数バッファ
 
 	// 深度バッファ
-	ID3D12Resource* depthBuffer_;
-	ID3D12DescriptorHeap* depthDescHeap_;
+	ComPtr<ID3D12Resource> depthBuffer_;
+	ComPtr<ID3D12DescriptorHeap> depthDescHeap_;
 
 	// マテリアルバッファ
-	ID3D12Resource* materialBuffer_;			// マテリアル用バッファ
-	ID3D12DescriptorHeap* materialDescHeap_;	// マテリアル用ディスクリプタヒープ
+	ComPtr<ID3D12Resource> materialBuffer_;			// マテリアル用バッファ
+	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;	// マテリアル用ディスクリプタヒープ
 	
 	
 };

@@ -14,11 +14,11 @@ float4 PS(VsOutput input) : SV_TARGET
 	// シェーダではノーコストである
 	float s = saturate(pow(saturate(dot(eray, lray)), speqular.a));
 	float2 spUv = input.norm.xy * float2(0.5f, -0.5f) + 0.5f;
+	float4 texCol = tex.Sample(smp, input.uv);
 	//return toonCol;
-	return float4(max(ambient.rgb ,toonCol * diffuse.rgb )+ speqular.rgb * s, diffuse.a)
-		* tex.Sample(smp, input.uv)
+	return float4(max(ambient.rgb,toonCol.rgb * diffuse.rgb) + speqular.rgb * s, diffuse.a)
+		* texCol
 		* sph.Sample(smp, spUv)
-		+ spa.Sample(smp, spUv);
-	//return tex.Sample(smp, input.uv);
-	//return float4(input.uv.x, input.uv.y, 1.0f, 1.0f);
+		+ spa.Sample(smp, spUv)
+		+ float4(texCol * ambient * 0.5);
 }

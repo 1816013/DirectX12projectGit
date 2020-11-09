@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <sstream>
 #include <iomanip>
+#include <array>
 
 using namespace DirectX;
 using namespace std;
@@ -102,34 +103,6 @@ bool PMDModel::Load(const char* path)
 		materials.size() * sizeof(materials[0]),
 		1, fp);
 
-	for (auto m : materials)
-	{
-		PMDMaterial mat;
-		mat.diffuse = m.diffuse;
-		mat.speqular = m.specular;
-		mat.ambient = m.ambient;
-		mat.alpha = m.alpha;
-		mat.speqularity = m.specularity;
-		mat.indexNum = m.indexNum;
-		texturePaths_.push_back(m.textureFilePath);
-		if (m.toonIndex != 0xff)
-		{
-			ostringstream oss;
-			oss << "toon";
-			oss << std::setfill('0');
-			oss << std::setw(2);
-			oss << m.toonIndex + 1;
-			oss << ".bmp";
-			toonPaths_.push_back(oss.str());
-		}
-		else
-		{
-			toonPaths_.push_back("");
-		}
-		
-		materials_.push_back(mat);
-	}
-
 	// ボーン読み込み
 	uint16_t boneNum = 0;
 	readSize = fread_s(&boneNum,
@@ -155,9 +128,101 @@ bool PMDModel::Load(const char* path)
 			sizeof(chainNum),
 			1, fp);
 		fseek(fp, 6, SEEK_CUR);
-		fseek(fp, 2 * chainNum, SEEK_CUR);
+		fseek(fp, sizeof(uint16_t) * chainNum, SEEK_CUR);
 	}
+
+	// 表情数
+	uint16_t skinNum = 0;
+	readSize = fread_s(&skinNum,
+		sizeof(skinNum),
+		sizeof(skinNum),
+		1, fp);
+
+	for (int i = 0; i < skinNum; ++i)
+	{
+		fseek(fp, 20, SEEK_CUR);	// 表情名[20]
+		uint32_t skinVertNum = 0;	// その表情に関わる頂点数
+		readSize = fread_s(&skinVertNum,
+			sizeof(skinVertNum),
+			sizeof(skinVertNum),
+			1, fp);
+		fseek(fp, 1, SEEK_CUR);	// 表情の種類
+		fseek(fp, skinVertNum * 16, SEEK_CUR);	// 表情用の頂点データ
+	}
+
+	// 表情表示名
+	uint8_t skinDispNum = 0;
+	readSize = fread_s(&skinDispNum,
+		sizeof(skinDispNum),
+		sizeof(skinDispNum),
+		1, fp);
+	fseek(fp, skinDispNum * 2, SEEK_CUR);
+
+	// ik表示名
+	uint8_t ikNameNum = 0;
+	readSize = fread_s(&ikNameNum,
+		sizeof(ikNameNum),
+		sizeof(ikNameNum),
+		1, fp);
+	fseek(fp, ikNameNum * 50, SEEK_CUR);
+
+	// 表示ボーン情報
+	uint32_t boneDispNum = 0;
+	readSize = fread_s(&boneDispNum,
+		sizeof(boneDispNum),
+		sizeof(boneDispNum),
+		1, fp);
+	fseek(fp, (sizeof(uint16_t)+sizeof(uint8_t))* boneDispNum, SEEK_CUR);
+
+	// 英名対応
+	uint8_t isEng = 0;
+	readSize = fread_s(&isEng,
+		sizeof(isEng),
+		sizeof(isEng),
+		1, fp);
+	if (isEng)
+	{
+		fseek(fp, 276, SEEK_CUR);
+		fseek(fp, boneNum * 20, SEEK_CUR);	// ボーン英名リスト
+		fseek(fp, (skinNum - 1) * 20, SEEK_CUR);	// 表情英名リスト
+		fseek(fp, ikNameNum * 50, SEEK_CUR);	// ik英名リスト
+	}
+	
+	array<char[100], 10>toonNames;
+	readSize = fread_s(&toonNames,
+		toonNames.size() * sizeof(toonNames[0]),
+		toonNames.size() * sizeof(toonNames[0]),
+		1, fp);
+
 	fclose(fp);
+
+	for (auto m : materials)
+	{
+		PMDMaterial mat;
+		mat.diffuse = m.diffuse;
+		mat.speqular = m.specular;
+		mat.ambient = m.ambient;
+		mat.alpha = m.alpha;
+		mat.speqularity = m.specularity;
+		mat.indexNum = m.indexNum;
+		texturePaths_.push_back(m.textureFilePath);
+		if (m.toonIndex != 0xff)
+		{
+			/*ostringstream oss;
+			oss << "toon";
+			oss << std::setfill('0');
+			oss << std::setw(2);
+			oss << m.toonIndex + 1;
+			oss << ".bmp";*/
+			toonPaths_.push_back(toonNames[m.toonIndex]);
+		}
+		else
+		{
+			toonPaths_.push_back("");
+		}
+
+		materials_.push_back(mat);
+	}
 	return true;
 
 }
