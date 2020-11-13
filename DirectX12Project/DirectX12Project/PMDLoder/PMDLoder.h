@@ -27,11 +27,20 @@ struct PMDMaterial
 	DirectX::XMFLOAT3 ambient;	// アンビエント色
 	uint32_t indexNum;		// マテリアルのインデックス数
 };
+struct PMDBone
+{
+	std::string name;	// ボーンの名前
+	std::vector<int> children;	// 子ボーンの番号
+	DirectX::XMFLOAT3 pos;
+#ifdef _DEBUG
+	std::vector<std::string> childrenName;
+#endif // _DEBUG
+};
 
 /// <summary>
 /// PMDモデルデータを扱うクラス
 /// </summary>
-class PMDModel
+class PMDLoder
 {
 public:
 	/// <summary>
@@ -71,15 +80,24 @@ public:
 	/// <returns>トゥーンファイルパス</returns>
 	const std::vector<std::string>& GetToonPaths()const;
 
-private:
-	std::string GetTextureFromModelAndTexPath(const std::string& modelPath,
-		const std::string&);
+	/// <summary>
+	/// モデルのパスを取得
+	/// </summary>
+	/// <returns></returns>
+	const std::string& GetModelPath()const;
 
+	const std::vector<PMDBone>& GetBones_()const;
+
+private:
 	std::vector<PMDVertex>vertices_;
 	std::vector<uint16_t>indices_;
 	std::vector<PMDMaterial>materials_;
 	std::vector<std::string>texturePaths_;
 	std::vector<std::string>toonPaths_;
+	
+	std::string modelPath_;
+	std::vector<PMDBone>bones_;	// ボーン情報	
+	std::vector<DirectX::XMMATRIX>boneMats;	// ボーン行列
 	
 };
 

@@ -1,4 +1,4 @@
-#include "PMDModel.h"
+#include "PMDLoder.h"
 #include <Windows.h>
 #include <stdio.h>
 #include <cstdint>
@@ -9,13 +9,9 @@
 using namespace DirectX;
 using namespace std;
 
-namespace
+bool PMDLoder::Load(const char* path)
 {
-	
-}
-
-bool PMDModel::Load(const char* path)
-{
+	modelPath_ = path;
 	// 識別子"pmd"
 	FILE* fp = nullptr;	
 	errno_t err = fopen_s(&fp, path, "rb");
@@ -62,6 +58,12 @@ bool PMDModel::Load(const char* path)
 	};
 	struct Bone
 	{
+		char boneName[20];		// ボーンの名前20
+		uint16_t parentNo;		// 親ボーン番号2
+		uint16_t tailNo;		// ボーンの終端番号2
+		uint8_t type;			// ボーン種別1
+		uint16_t ikParentNo;	// ik親番号2
+		XMFLOAT3 pos;			// 座標12
 
 	};
 #pragma pack()
@@ -109,8 +111,33 @@ bool PMDModel::Load(const char* path)
 		sizeof(boneNum),
 		sizeof(boneNum),
 		1, fp);
+
+
+
 	// 読み飛ばし
-	readSize = fseek(fp, 39 * boneNum, SEEK_CUR);
+	std::vector<Bone>boneData(boneNum);
+	readSize = fread_s(boneData.data(),
+		boneData.size() * sizeof(boneData[0]),
+		boneData.size() * sizeof(boneData[0]),
+		1, fp);
+
+	bones_.resize(boneNum);
+
+	for (int i = 0; i < boneNum; ++i)
+	{
+		bones_[i].name = boneData[i].boneName;
+		bones_[i].pos = boneData[i].pos;
+	}
+	for (int i = 0; i < boneNum; ++i)
+	{
+		if (boneData[i].parentNo == 0xffff)continue;
+		auto pno = boneData[i].parentNo;
+		bones_[pno].children.push_back(i);
+#ifdef _DEBUG
+		bones_[pno].childrenName.push_back(boneData[i].boneName);
+#endif // _DEBUG
+	}
+	
 
 	// IK読み込み
 	uint16_t IKNum = 0;
@@ -227,44 +254,33 @@ bool PMDModel::Load(const char* path)
 
 }
 
-const std::vector<PMDVertex>& PMDModel::GetVertexData() const
+const std::vector<PMDVertex>& PMDLoder::GetVertexData() const
 {
 	return vertices_;
 }
 
-const std::vector<uint16_t>& PMDModel::GetIndexData() const
+const std::vector<uint16_t>& PMDLoder::GetIndexData() const
 {
 	return indices_;
 }
 
-const std::vector<PMDMaterial>& PMDModel::GetMaterialData() const
+const std::vector<PMDMaterial>& PMDLoder::GetMaterialData() const
 {
 	return materials_;
 }
 
-const std::vector<std::string>& PMDModel::GetTexturePaths() const
+const std::vector<std::string>& PMDLoder::GetTexturePaths() const
 {
 	return texturePaths_;
 }
 
-const std::vector<std::string>& PMDModel::GetToonPaths() const
+const std::vector<std::string>& PMDLoder::GetToonPaths() const
 {
 	return toonPaths_;
 }
 
-std::string PMDModel::GetTextureFromModelAndTexPath(const std::string& modelPath, const std::string& texPath)
+const std::string& PMDLoder::GetModelPath() const
 {
-	auto idx1 = modelPath.rfind('/');
-	if (idx1 == std::string::npos)
-	{
-		idx1 = 0;
-	}
-	auto idx2 = modelPath.rfind('\\');
-	if (idx2 == std::string::npos)
-	{
-		idx2 = 0;
-	}
-	auto pathIndex = max( idx1,idx2);
-	auto folderPath = modelPath.substr(0, pathIndex+1);
-	return folderPath + texPath;
+	return modelPath_;
 }
+

@@ -6,10 +6,24 @@
 #include <memory>
 #include <string>
 #include <d3dx12.h>
+#include <unordered_map>
 
 using Microsoft::WRL::ComPtr;
 
-class PMDModel;
+struct Color
+{
+	uint8_t r, g, b, a;
+	Color() :r(0), g(0), b(0), a(255) {};
+	Color(uint8_t inr, uint8_t ing, uint8_t inb, uint8_t ina) :
+		r(inr), g(ing), b(inb), a(inr) {}
+	Color(uint8_t inc) :
+		r(inc), g(inc), b(inc), a(255) {}
+};
+
+class PMDResource;
+class PMDLoder;
+class PMDActor;
+struct Size;
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -24,6 +38,8 @@ public:
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool Init(HWND hwnd);
 
+	void CreatePMDModelTexture();
+
 	/// <summary>
 	/// DirectX12の更新を行う
 	/// </summary>
@@ -31,13 +47,30 @@ public:
 	bool Update();
 
 	/// <summary>
+	/// スクリーンをクリアして書けるようにする
+	/// </summary>
+	void ClearDrawScreen();
+
+
+	/// <summary>
+	/// コマンドリストを閉じてバックバッファに対して
+	/// 画処理を行い終了まで待つ
+	/// </summary>
+	void DrawExcute();
+
+
+	void DrawPMDModel();
+
+	void ExecuteAndWait();
+
+	/// <summary>
 	/// 後処理(デバイスをリリースをする)
 	/// </summary>
 	void Terminate();
-private:
 
 
-	
+	ID3D12Device* GetDevice();
+private:	
 	// 基本行列
 	struct BasicMatrix
 	{
@@ -114,27 +147,41 @@ private:
 	/// <returns>true:成功 false:失敗</returns>
 	bool InitViewRect();
 
-	using P_Resouse_t = ID3D12Resource*;
-
 	/// <summary>
 	/// テクスチャの作成(DXLIBでいうLoadGraph())
 	/// </summary>
 	/// <param name="path"></param>
 	/// <param name="res"></param>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateTexture(const std::wstring& path, P_Resouse_t& res);
-
+	bool CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res);
+	
 	/// <summary>
-	/// 白と黒のテクスチャ作成
+	/// 単色テクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateMonoTexture();
-	
+	bool CreateMonoColorTexture(ComPtr<ID3D12Resource>& res, const Color col);
+
 	/// <summary>
 	/// グラデーションテクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateGradationTexture();
+	bool CreateGradationTexture(ComPtr<ID3D12Resource>& tex, const Size size);
+
+	/// <summary>
+	/// GPUにアップロードするための準備
+	/// </summary>
+	/// <param name="size">大きさ</param>
+	/// <param name="tex">テクスチャバッファ</param>
+	/// <param name="subResData"></param>
+	void SetUploadTexure(ComPtr<ID3D12Resource>& tex, D3D12_SUBRESOURCE_DATA& subResData);
+	
+
+	/// <summary>
+	/// デフォルトテクスチャ作成
+	/// </summary>
+	/// <returns></returns>
+	bool CreateDefaultTextures();
+	
 
 	/// <summary>
 	/// リソースの基本的なディスクリプタ作成
@@ -160,12 +207,24 @@ private:
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool CreateMaterialBufferView();
 
+	void CreateSRVView(
+		D3D12_SHADER_RESOURCE_VIEW_DESC& srvDesc, 
+		ComPtr<ID3D12Resource>& buffer,
+		ComPtr<ID3D12Resource>& defaultTex,
+		D3D12_CPU_DESCRIPTOR_HANDLE& heapAddress, const UINT& heapSize);
+
 	/// <summary>
 	/// エラー情報を出力に表示
 	/// </summary>
 	/// <param name="errBlob">エラー情報</param>
 	void OutputFromErrorBlob(ID3DBlob* errBlob);
 
+	/// <summary>
+	/// 基本的なバッファ作成
+	/// </summary>
+	/// <param name="size"></param>
+	/// <param name="heapType"></param>
+	/// <returns></returns>
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_UPLOAD);
 
 	ComPtr<ID3D12Device> dev_ = nullptr;
@@ -214,13 +273,14 @@ private:
 	ComPtr<ID3D12Resource> blackTex_; // 黒テクスチャ
 	ComPtr<ID3D12Resource> gradTex_; // グラデーションテクスチャ
 
-
-	
 	// map中の基本マテリアル
 	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;
 
 	// PMDモデル
-	std::shared_ptr<PMDModel> pmdModel_;
+	std::shared_ptr<PMDLoder> pmdModel_;
+
+	// 一時的にここに置く
+	std::shared_ptr<PMDActor>pmdActor_;
 
 	// 定数バッファ
 	ComPtr<ID3D12Resource> transformBuffer_;	// 定数バッファ
@@ -232,6 +292,12 @@ private:
 	// マテリアルバッファ
 	ComPtr<ID3D12Resource> materialBuffer_;			// マテリアル用バッファ
 	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;	// マテリアル用ディスクリプタヒープ
+
+	// バックバッファインデックス
+	uint32_t bbIdx_;
 	
+	std::shared_ptr<PMDResource> pmdResource_;
+
+	std::unordered_map<std::wstring, ID3D12Resource*>textureResource_;
 	
 };

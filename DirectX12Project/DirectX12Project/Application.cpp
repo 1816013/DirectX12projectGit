@@ -44,10 +44,12 @@ void Application::Run()
 			TranslateMessage(&msg);	//仮想キー関連の変換
 			DispatchMessage(&msg);
 		}
+		dx_->ClearDrawScreen();
 		if (!dx_->Update())
 		{
 			break;
 		}
+		dx_->DrawExcute();
 	}	
 }
 

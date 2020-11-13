@@ -150,14 +150,20 @@
     <ClCompile Include="BMPLoder\BmpLoder.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="PMDLoder\PMDModel.cpp" />
+    <ClCompile Include="DirectX12\PMDActor.cpp" />
+    <ClCompile Include="PMDLoder\PMDLoder.cpp" />
+    <ClCompile Include="Common\StrOperater.cpp" />
+    <ClCompile Include="DirectX12\PMDResource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="BMPLoder\BmpLoder.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
-    <ClInclude Include="PMDLoder\PMDModel.h" />
+    <ClInclude Include="DirectX12\PMDActor.h" />
+    <ClInclude Include="PMDLoder\PMDLoder.h" />
+    <ClInclude Include="Common\StrOperater.h" />
+    <ClInclude Include="DirectX12\PMDResource.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\ps.hlsl">
