@@ -3,6 +3,12 @@
 
 float4 PS(VsOutput input) : SV_TARGET
 {
+	//float2 bno = float2(input.boneNum % 2);
+	//float col = lerp(bno.x, bno.y, input.weight);
+	// lerp = A(1-t) + Bt‚ğs‚¤‚à‚Ì]
+	//return float4(input.weight, 1, 1, 1);
+	//return float4(float2(input.boneNum / 128.0f), 0, 1);
+
 	float3 light = normalize(float3(-1, 1, 1));
 	float b = saturate(dot(input.norm.xyz, light));
 	float4 toonCol = toon.Sample(toonSmp, float2(0.5,1.0f -b));

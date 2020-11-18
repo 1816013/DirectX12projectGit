@@ -75,7 +75,7 @@ Application::Application()
 
 bool Application::InitWindow()
 {
-	CoInitializeEx(0, COINIT_MULTITHREADED);
+	auto result = CoInitializeEx(0, COINIT_MULTITHREADED);
 	inst_ = GetModuleHandle(0);
 	WNDCLASSEX wndclass = {};
 	wndclass.cbSize = sizeof(WNDCLASSEX);

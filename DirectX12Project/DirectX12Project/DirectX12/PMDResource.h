@@ -24,27 +24,32 @@ enum class BuffType
 struct PMDResourceBinding
 {
 	std::vector<BuffType>types_;	// リソースの順番
-	std::vector<ID3D12Resource*> resources_;
+	struct Resource
+	{
+		ID3D12Resource* resource;
+		int size;
+	};
+	std::vector<Resource> resources_;
 	ComPtr<ID3D12DescriptorHeap>descHeap_;
+	int strideBytes_;
 	void Init(ID3D12Device* dev, std::vector<BuffType>types);
-	void AddBuffers(ID3D12Resource* res);
+	void AddBuffers(ID3D12Resource* res, int size = 0);
 };
 using PMDResources = std::array<PMDResourceBinding, static_cast<int>(GroopType::MAX)>;
 class PMDResource
 {
 public:
 	PMDResource(ID3D12Device* dev);
-	void Reset(GroopType groopType);
 	void Build(const std::vector<GroopType> groopType);
 	PMDResourceBinding& GetGroops(GroopType groopType);
 	void SetPMDState(ID3D12GraphicsCommandList& cmdList);
-	ID3D12PipelineState& GetPipelineState();
+	ComPtr<ID3D12RootSignature> GetRootSignature();
 private:
 	/// <summary>
 	/// ルートシグネチャ生成
 	/// </summary>
 	/// <param name="plsDesc">パイプラインステートデスク</param>
-	ComPtr<ID3D12RootSignature> CreateRootSignature();
+	void CreateRootSignature();
 
 	/// <summary>
 	/// パイプラインステートオブジェクト作成

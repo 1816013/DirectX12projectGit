@@ -5,14 +5,23 @@ cbuffer Matrix:register(b0)
 	matrix viewproj;	// カメラ行列
 }
 
+// ボーン
+cbuffer Bone:register(b1)
+{
+	matrix boneMats[512];	// ボーンマトリックス
+}
+
 // ピクセルシェーダからのみ見える
-cbuffer Material:register(b1)
+// マトリックス
+cbuffer Material:register(b2)
 {
 	float4 diffuse;	// ディフューズ色
 	float4 speqular;	// スペキュラ色
 	float4 ambient;	// アンビエント色
 
 }
+
+
 
 // テクスチャ
 Texture2D<float4>tex:register(t0);	// 通常テクスチャ
@@ -29,4 +38,6 @@ struct VsOutput
 	float4 pos : POSITION;		// 頂点座標
 	float4 norm : NORMAL;		// 法線
 	float2 uv : TEXCOORD;		// uv座標
+	min16uint2 boneNum : BONE_NO;	// デバッグ用ボーン番号
+	float weight : WEIGHT;		// デバッグ用ウェイト
 };

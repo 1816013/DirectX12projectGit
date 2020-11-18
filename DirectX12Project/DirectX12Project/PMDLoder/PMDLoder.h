@@ -12,7 +12,8 @@ struct  PMDVertex
 	DirectX::XMFLOAT3 pos;		// 座標
 	DirectX::XMFLOAT3 normal;	// 法線
 	DirectX::XMFLOAT2 uv;		// uv
-
+	uint16_t boneNum[2]; // 影響ボーン番号
+	float weight;	// 影響度0～100 →0.0～1.0に変換
 };
 
 /// <summary>
@@ -86,7 +87,17 @@ public:
 	/// <returns></returns>
 	const std::string& GetModelPath()const;
 
-	const std::vector<PMDBone>& GetBones_()const;
+	/// <summary>
+	/// ボーンデータ取得
+	/// </summary>
+	/// <returns>ボーンデータ</returns>
+	const std::vector<PMDBone>& GetBoneData()const;
+
+	/// <summary>
+	/// ボーン行列情報取得
+	/// </summary>
+	/// <returns>ボーン行列情報</returns>
+	const std::vector<DirectX::XMMATRIX>& GetBoneMat()const;
 
 private:
 	std::vector<PMDVertex>vertices_;
@@ -97,7 +108,7 @@ private:
 	
 	std::string modelPath_;
 	std::vector<PMDBone>bones_;	// ボーン情報	
-	std::vector<DirectX::XMMATRIX>boneMats;	// ボーン行列
+	std::vector<DirectX::XMMATRIX>boneMats_;	// ボーン行列
 	
 };
 

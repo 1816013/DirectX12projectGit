@@ -9,6 +9,7 @@ using namespace std;
 
 namespace
 {
+
 	/// <summary>
 	/// エラー情報を出力に表示
 	/// </summary>
@@ -31,18 +32,12 @@ PMDResource::PMDResource(ID3D12Device* dev) : dev_(dev)
 	
 }
 
-void PMDResource::Reset(GroopType groopType)
-{
-	
-}
-
 void PMDResource::Build(const vector<GroopType> groopType)
 {	
 	for (auto gType : groopType)
 	{
 		int resIdx = 0;
-		auto buffers = res_[static_cast<int>(gType)].resources_;
-		
+		auto buffers = res_[static_cast<int>(gType)].resources_;	
 		//ディスクリプタヒープ
 		auto buffType = res_[static_cast<int>(gType)].types_;
 		ComPtr<ID3D12DescriptorHeap> descHeap;
@@ -55,20 +50,20 @@ void PMDResource::Build(const vector<GroopType> groopType)
 		auto result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(descHeap.ReleaseAndGetAddressOf()));
 		res_[static_cast<int>(gType)].descHeap_ = descHeap;
 		assert(SUCCEEDED(result));
-
-		//auto descHeap = res_[static_cast<int>(gType)].descHeap_;
+		D3D12_GPU_VIRTUAL_ADDRESS gAddress;
+		
 		auto heapAddress = descHeap->GetCPUDescriptorHandleForHeapStart();
 		auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		for (int i = 0; i < buffers.size(); ++i)
 		{
-			resIdx = (i + buffType.size()) % buffType.size();
-			auto buffType = res_[static_cast<int>(gType)].types_;
+			resIdx = (i + buffType.size()) % buffType.size();	
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 			if (buffType[resIdx] == BuffType::CBV)
 			{
-				auto cbDesc = buffers[i]->GetDesc();
-				cbvDesc.BufferLocation = buffers[i]->GetGPUVirtualAddress();
-				cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width);
+				gAddress = buffers[i].resource->GetGPUVirtualAddress()+(buffers[i].size * (i / buffType.size()) );
+				auto cbDesc = buffers[i].resource->GetDesc();
+				cbvDesc.BufferLocation = gAddress;
+				cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width) == 256 ? static_cast<UINT>(cbDesc.Width) : static_cast<UINT>(cbDesc.Width) /( buffers.size() / buffType.size());
 				dev_->CreateConstantBufferView(&cbvDesc, heapAddress);
 				heapAddress.ptr += heapSize;
 			}
@@ -82,12 +77,12 @@ void PMDResource::Build(const vector<GroopType> groopType)
 				srvDesc.Texture2D.PlaneSlice = 0;
 				srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 				srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 1, 2, 3);
-				if (buffers[i] != nullptr)
+				if (buffers[i].resource != nullptr)
 				{
-					srvDesc.Format = buffers[i]->GetDesc().Format;
+					srvDesc.Format = buffers[i].resource->GetDesc().Format;
 				}
 				dev_->CreateShaderResourceView(
-					buffers[i],
+					buffers[i].resource,
 					&srvDesc,
 					heapAddress);
 				heapAddress.ptr += heapSize;
@@ -95,6 +90,7 @@ void PMDResource::Build(const vector<GroopType> groopType)
 		
 		}	
 	}
+	CreateRootSignature();
 }
 
 PMDResourceBinding& PMDResource::GetGroops(GroopType groopType)
@@ -106,47 +102,59 @@ void PMDResource::SetPMDState(ID3D12GraphicsCommandList& cmdList)
 {
 }
 
-ComPtr<ID3D12RootSignature> PMDResource::CreateRootSignature()
+ComPtr<ID3D12RootSignature> PMDResource::GetRootSignature()
+{
+	return rootSig_;
+}
+
+void PMDResource::CreateRootSignature()
 {
 	HRESULT result = S_OK;
 	// ルートシグネチャ
 	CD3DX12_ROOT_SIGNATURE_DESC rsDesc = {};
 
 	D3D12_ROOT_PARAMETER rp[2] = {};
-	D3D12_DESCRIPTOR_RANGE range[3] = {};
+	D3D12_DESCRIPTOR_RANGE range[4] = {};
 
-
+	// レンジ
 	// 行列定数バッファ
 	range[0] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // レンジタイプ b
 		1,// デスクリプタ数	b0～b0まで
 		0);// ベースレジスタ番号 b0	
 
-	// マテリアル
+	// ボーン
 	range[1] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // レンジタイプ b
-		1,// デスクリプタ数	b1～b1まで
+		1,// デスクリプタ数	b2～b2まで
 		1);// ベースレジスタ番号 b1
 
-	// テクスチャ
+	// マテリアル
 	range[2] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ b
+		D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // レンジタイプ b
+		1,// デスクリプタ数	b1～b1まで
+		2);// ベースレジスタ番号 b2
+
+	// テクスチャ
+	range[3] = CD3DX12_DESCRIPTOR_RANGE(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
 		4,// デスクリプタ数	t0～t3まで
 		0);// ベースレジスタ番号 t0
 
+	// ルートパラメータ
 	// 座標変換
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
 		rp[0],	// ルートパラメータ
-		1,		// レンジ数
+		2,		// レンジ数
 		&range[0]);	// レンジ先頭アドレス
 	// マテリアル&テクスチャ
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
 		rp[1],	// ルートパラメータ
 		2,	// レンジ数
-		&range[1],	// レンジ先頭アドレス
+		&range[2],	// レンジ先頭アドレス
 		D3D12_SHADER_VISIBILITY_PIXEL);	// どのシェーダで使うか
 
-	// s0を定義
+	// sを定義
 	// サンプラの定義、サンプラはuvが0未満や1越えとかの時や
 	// UVをもとに色をとってくるときのルールを指定するもの
 	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
@@ -174,10 +182,6 @@ ComPtr<ID3D12RootSignature> PMDResource::CreateRootSignature()
 		sigBlob->GetBufferPointer(),
 		sigBlob->GetBufferSize(),
 		IID_PPV_ARGS(&rootSig_));
-	assert(SUCCEEDED(result));
-	return rootSig_;
-
-	
 	assert(SUCCEEDED(result));
 }
 
@@ -255,7 +259,7 @@ bool PMDResource::CreatePipelineState()
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
 	//// ルートシグネチャ生成
-	plsDesc.pRootSignature = CreateRootSignature().Get();
+	plsDesc.pRootSignature = rootSig_.Get();
 	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(&pipelineState_));
 
 	return true;
@@ -266,7 +270,7 @@ void PMDResourceBinding::Init(ID3D12Device* dev, std::vector<BuffType> types)
 	types_ = types;
 }
 
-void PMDResourceBinding::AddBuffers(ID3D12Resource* res)
+void PMDResourceBinding::AddBuffers(ID3D12Resource* res, int size)
 {
-	resources_.push_back(res);
+	resources_.push_back({ res, size });
 }

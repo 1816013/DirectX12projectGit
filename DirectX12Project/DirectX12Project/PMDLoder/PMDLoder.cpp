@@ -87,6 +87,9 @@ bool PMDLoder::Load(const char* path)
 		vertices_[i].pos = vert[i].pos;
 		vertices_[i].normal = vert[i].normal_vec;
 		vertices_[i].uv = vert[i].uv;
+		copy(begin(vert[i].bone_num),
+			end(vert[i].bone_num), vertices_[i].boneNum);
+		vertices_[i].weight = static_cast<float>(vert[i].bone_weight) / 100.0f;
 	}
 	uint32_t indexNum;
 	readSize = fread_s(&indexNum, sizeof(indexNum), sizeof(indexNum), 1, fp);
@@ -235,12 +238,6 @@ bool PMDLoder::Load(const char* path)
 		texturePaths_.push_back(m.textureFilePath);
 		if (m.toonIndex != 0xff)
 		{
-			/*ostringstream oss;
-			oss << "toon";
-			oss << std::setfill('0');
-			oss << std::setw(2);
-			oss << m.toonIndex + 1;
-			oss << ".bmp";*/
 			toonPaths_.push_back(toonNames[m.toonIndex]);
 		}
 		else
@@ -282,5 +279,14 @@ const std::vector<std::string>& PMDLoder::GetToonPaths() const
 const std::string& PMDLoder::GetModelPath() const
 {
 	return modelPath_;
+}
+
+const std::vector<PMDBone>& PMDLoder::GetBoneData() const
+{
+	return bones_;
+}
+const std::vector<DirectX::XMMATRIX>& PMDLoder::GetBoneMat() const
+{
+	return boneMats_;
 }
 

@@ -20,10 +20,19 @@ struct Color
 		r(inc), g(inc), b(inc), a(255) {}
 };
 
+enum class ColTexType
+{
+	White,
+	Black,
+	Grad,
+	Max
+};
+
 class PMDResource;
 class PMDLoder;
 class PMDActor;
 struct Size;
+struct PMDBone;
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -37,8 +46,6 @@ public:
 	/// </summary>
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool Init(HWND hwnd);
-
-	void CreatePMDModelTexture();
 
 	/// <summary>
 	/// DirectX12の更新を行う
@@ -136,36 +143,23 @@ private:
 	bool CreatePipelineState();
 
 	/// <summary>
-	/// ルートシグネチャ生成
-	/// </summary>
-	/// <param name="plsDesc">パイプラインステートデスク</param>
-	void CreateRootSignature(D3D12_GRAPHICS_PIPELINE_STATE_DESC& plsDesc);
-
-	/// <summary>
 	/// ビューポートとシザー矩形初期化
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
 	bool InitViewRect();
 
-	/// <summary>
-	/// テクスチャの作成(DXLIBでいうLoadGraph())
-	/// </summary>
-	/// <param name="path"></param>
-	/// <param name="res"></param>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res);
 	
 	/// <summary>
 	/// 単色テクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateMonoColorTexture(ComPtr<ID3D12Resource>& res, const Color col);
+	bool CreateMonoColorTexture(ColTexType colType, const Color col);
 
 	/// <summary>
 	/// グラデーションテクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateGradationTexture(ComPtr<ID3D12Resource>& tex, const Size size);
+	bool CreateGradationTexture( const Size size);
 
 	/// <summary>
 	/// GPUにアップロードするための準備
@@ -173,7 +167,7 @@ private:
 	/// <param name="size">大きさ</param>
 	/// <param name="tex">テクスチャバッファ</param>
 	/// <param name="subResData"></param>
-	void SetUploadTexure(ComPtr<ID3D12Resource>& tex, D3D12_SUBRESOURCE_DATA& subResData);
+	void SetUploadTexure( D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType);
 	
 
 	/// <summary>
@@ -207,11 +201,12 @@ private:
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool CreateMaterialBufferView();
 
-	void CreateSRVView(
-		D3D12_SHADER_RESOURCE_VIEW_DESC& srvDesc, 
-		ComPtr<ID3D12Resource>& buffer,
-		ComPtr<ID3D12Resource>& defaultTex,
-		D3D12_CPU_DESCRIPTOR_HANDLE& heapAddress, const UINT& heapSize);
+
+	/// <summary>
+	/// ボーンバッファ作成
+	/// </summary>
+	/// <returns>true : 成功 false : 失敗</returns>
+	bool CreateBoneBuffer();
 
 	/// <summary>
 	/// エラー情報を出力に表示
@@ -226,6 +221,16 @@ private:
 	/// <param name="heapType"></param>
 	/// <returns></returns>
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_UPLOAD);
+
+	
+	
+	/// <summary>
+	/// ボーンの返還を末端まで影響させる再帰関数
+	/// </summary>
+	/// <param name="bones">ボーン情報</param>
+	/// <param name="mats"></param>
+	/// <param name="idx"></param>
+	void RecursiveCalucurate(const std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, int idx);
 
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
@@ -254,9 +259,6 @@ private:
 	ComPtr<ID3D10Blob> vertexShader_ = nullptr;
 	ComPtr<ID3D10Blob> pixelShader_ = nullptr;
 
-	//ルートシグネチャ
-	ComPtr<ID3D12RootSignature> rootSig_ = nullptr;// ルートシグネクチャ
-
 	// ビューポート
 	D3D12_VIEWPORT viewPort_ = {};
 	// シザー矩形
@@ -265,13 +267,7 @@ private:
 	// リソース
 	ComPtr<ID3D12DescriptorHeap> resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
 	// テクスチャ
-	std::vector<ComPtr<ID3D12Resource>> texBuffers_;	// テクスチャリソース
-	std::vector<ComPtr<ID3D12Resource>> sphBuffers_;	// sphテクスチャリソース
-	std::vector<ComPtr<ID3D12Resource>> spaBuffers_;	// sphテクスチャリソース
-	std::vector<ComPtr<ID3D12Resource>> toonBuffers_;	// toonテクスチャリソース
-	ComPtr<ID3D12Resource> whiteTex_; // 白テクスチャ
-	ComPtr<ID3D12Resource> blackTex_; // 黒テクスチャ
-	ComPtr<ID3D12Resource> gradTex_; // グラデーションテクスチャ
+	std::vector<ComPtr<ID3D12Resource>>defTextures_;
 
 	// map中の基本マテリアル
 	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;
@@ -299,5 +295,9 @@ private:
 	std::shared_ptr<PMDResource> pmdResource_;
 
 	std::unordered_map<std::wstring, ID3D12Resource*>textureResource_;
-	
+
+	// ボーンバッファ
+	ComPtr<ID3D12Resource> boneBuffer_;			// ボーン用バッファ
+	ComPtr<ID3D12DescriptorHeap> boneDescHeap_;			// ボーン用ディスクリプタヒープ
+
 };
