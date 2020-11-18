@@ -12,6 +12,7 @@
 #include "../Common.h"
 #include "PMDResource.h"
 #include "PMDActor.h"
+#include "../PMDLoder/VMDMotion.h"
 //#include "../BMPLoder/BmpLoder.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -568,6 +569,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	//const char* modelPath = "Resource/PMD/ŒÃ–¾’n‚³‚Æ‚è/ŒÃ–¾’n‚³‚Æ‚è152Normal.pmd";
 	//const char* modelPath = "Resource/PMD/—ì–²/reimu_F02.pmd";
 	pmdActor_->LoadModel(modelPath);
+	vmdMotion_->Load("Resource/PMD/—ì–²/reimu_F02.pmd");
 	
 	CreateSwapChain(hwnd);
 	

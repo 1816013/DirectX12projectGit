@@ -31,6 +31,7 @@ enum class ColTexType
 class PMDResource;
 class PMDLoder;
 class PMDActor;
+class VMDMotion;
 struct Size;
 struct PMDBone;
 /// <summary>
@@ -272,11 +273,10 @@ private:
 	// map中の基本マテリアル
 	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;
 
-	// PMDモデル
-	std::shared_ptr<PMDLoder> pmdModel_;
-
+	//// PMDモデルデータ関連
 	// 一時的にここに置く
 	std::shared_ptr<PMDActor>pmdActor_;
+	std::shared_ptr<VMDMotion>vmdMotion_;
 
 	// 定数バッファ
 	ComPtr<ID3D12Resource> transformBuffer_;	// 定数バッファ
