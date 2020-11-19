@@ -381,17 +381,18 @@ bool Dx12Wrapper::CreateBoneBuffer()
 	auto mats = pmdActor_->GetPMDModel().GetBoneMat();
 	mats.resize(bData.size());
 	fill(mats.begin(), mats.end(), XMMatrixIdentity());
-
+	auto& quaternion = vmdMotion_->GetQuaternionMap();
 	vector<string> nameTbl = { "ç∂Ç–Ç∂","ç∂òr","âEÇ–Ç∂","âEòr" };
 	float rotatetable[] = { XM_PIDIV2, XM_PIDIV4,-XM_PIDIV2, -XM_PIDIV4 };
-	for (int i = 0;i < nameTbl.size(); ++i)
+	for (int i = 0;i < bData.size(); ++i)
 	{
-		auto bidx = boneTable[nameTbl[i]];
+		auto bidx = boneTable[bData[i].name];
 		auto& bpos = bData[bidx].pos;
 		// âÒì]Ç≥ÇπÇÈ
 		mats[bidx] = XMMatrixIdentity();
 		mats[bidx] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-		mats[bidx] *= XMMatrixRotationZ(rotatetable[i]);
+		mats[bidx] *= XMMatrixRotationQuaternion(quaternion.at(bData[i].name));
+		//mats[bidx] *= XMMatrixRotationZ(rotatetable[i]);
 		mats[bidx] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
 	}
 
@@ -562,14 +563,15 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	
 	pmdActor_ = make_shared<PMDActor>(dev_.Get());
 	//const char* modelPath = "Resource/PMD/ç˜É~ÉN/mikuXSê·É~ÉN.pmd";
-	const char* modelPath = "Resource/PMD/â_êù/â_êùVer1.10SW.pmd";
-	//const char* modelPath = "Resource/PMD/model/èââπÉ~ÉN.pmd";
+	//const char* modelPath = "Resource/PMD/â_êù/â_êùVer1.10SW.pmd";
+	const char* modelPath = "Resource/PMD/model/èââπÉ~ÉN.pmd";
 	//const char* modelPath = "Resource/PMD/model/èÑâπÉãÉJ.pmd";
 	//const char* modelPath = "Resource/PMD/â‰ìﬂîeãøv1.0/â‰ìﬂîeãøv1.pmd";
 	//const char* modelPath = "Resource/PMD/å√ñæínÇ≥Ç∆ÇË/å√ñæínÇ≥Ç∆ÇË152Normal.pmd";
 	//const char* modelPath = "Resource/PMD/óÏñ≤/reimu_F02.pmd";
 	pmdActor_->LoadModel(modelPath);
-	vmdMotion_->Load("Resource/PMD/óÏñ≤/reimu_F02.pmd");
+	vmdMotion_ = make_shared<VMDMotion>();
+	vmdMotion_->Load("Resource/VMD/pose.vmd");
 	
 	CreateSwapChain(hwnd);
 	

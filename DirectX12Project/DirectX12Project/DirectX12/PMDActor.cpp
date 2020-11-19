@@ -169,7 +169,6 @@ void PMDActor::DrawModel(ID3D12GraphicsCommandList& cmdList)
 	cmdList.IASetVertexBuffers(0, 1, &vbView_);
 	cmdList.IASetIndexBuffer(&ibView_);
 
-
 	//// 座標変換ヒープセット
 	//auto resHeap = pmdResource_->GetGroops(GroopType::TRANSFORM).descHeap_.Get();
 	//ID3D12DescriptorHeap* deskHeaps[] = { resHeap/*resViewHeap_.Get()*/ };

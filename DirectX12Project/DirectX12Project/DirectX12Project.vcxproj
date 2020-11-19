@@ -154,6 +154,7 @@
     <ClCompile Include="PMDLoder\PMDLoder.cpp" />
     <ClCompile Include="Common\StrOperater.cpp" />
     <ClCompile Include="DirectX12\PMDResource.cpp" />
+    <ClCompile Include="PMDLoder\VMDMotion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -164,6 +165,7 @@
     <ClInclude Include="PMDLoder\PMDLoder.h" />
     <ClInclude Include="Common\StrOperater.h" />
     <ClInclude Include="DirectX12\PMDResource.h" />
+    <ClInclude Include="PMDLoder\VMDMotion.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\ps.hlsl">
