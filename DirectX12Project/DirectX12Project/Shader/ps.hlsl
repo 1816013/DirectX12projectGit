@@ -11,7 +11,7 @@ float4 PS(VsOutput input) : SV_TARGET
 
 	float3 light = normalize(float3(-1, 1, 1));
 	float b = saturate(dot(input.norm.xyz, light));
-	float4 toonCol = toon.Sample(toonSmp, float2(0.5,1.0f -b));
+	float4 toonCol = toon.Sample(toonSmp, float2(0.0f,1.0f - b));
 
 	float3 eye = float3(0.0f, 10.5f, 30.0f);
 	float3 eray = normalize(eye - input.pos.xyz);

@@ -34,10 +34,17 @@ PMDResource::PMDResource(ID3D12Device* dev) : dev_(dev)
 
 void PMDResource::Build(const vector<GroopType> groopType)
 {	
-	for (auto gType : groopType)
+	CreateResouses(groopType);
+	CreateRootSignature();
+	CreatePipelineState();
+}
+
+void PMDResource::CreateResouses(const std::vector<GroopType>& groopTypes)
+{
+	for (auto gType : groopTypes)
 	{
 		int resIdx = 0;
-		auto buffers = res_[static_cast<int>(gType)].resources_;	
+		auto buffers = res_[static_cast<int>(gType)].resources_;
 		//ディスクリプタヒープ
 		auto buffType = res_[static_cast<int>(gType)].types_;
 		ComPtr<ID3D12DescriptorHeap> descHeap;
@@ -51,19 +58,19 @@ void PMDResource::Build(const vector<GroopType> groopType)
 		res_[static_cast<int>(gType)].descHeap_ = descHeap;
 		assert(SUCCEEDED(result));
 		D3D12_GPU_VIRTUAL_ADDRESS gAddress;
-		
+
 		auto heapAddress = descHeap->GetCPUDescriptorHandleForHeapStart();
 		auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		for (int i = 0; i < buffers.size(); ++i)
 		{
-			resIdx = (i + buffType.size()) % buffType.size();	
+			resIdx = (i + buffType.size()) % buffType.size();
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 			if (buffType[resIdx] == BuffType::CBV)
 			{
-				gAddress = buffers[i].resource->GetGPUVirtualAddress()+(buffers[i].size * (i / buffType.size()) );
+				gAddress = buffers[i].resource->GetGPUVirtualAddress() + (buffers[i].size * (i / buffType.size()));
 				auto cbDesc = buffers[i].resource->GetDesc();
 				cbvDesc.BufferLocation = gAddress;
-				cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width) == 256 ? static_cast<UINT>(cbDesc.Width) : static_cast<UINT>(cbDesc.Width) /( buffers.size() / buffType.size());
+				cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width) == 256 ? static_cast<UINT>(cbDesc.Width) : static_cast<UINT>(cbDesc.Width) / (buffers.size() / buffType.size());
 				dev_->CreateConstantBufferView(&cbvDesc, heapAddress);
 				heapAddress.ptr += heapSize;
 			}
@@ -87,10 +94,9 @@ void PMDResource::Build(const vector<GroopType> groopType)
 					heapAddress);
 				heapAddress.ptr += heapSize;
 			}
-		
-		}	
+
+		}
 	}
-	CreateRootSignature();
 }
 
 PMDResourceBinding& PMDResource::GetGroops(GroopType groopType)
@@ -105,6 +111,11 @@ void PMDResource::SetPMDState(ID3D12GraphicsCommandList& cmdList)
 ComPtr<ID3D12RootSignature> PMDResource::GetRootSignature()
 {
 	return rootSig_;
+}
+
+ComPtr<ID3D12PipelineState> PMDResource::GetPipelineState()
+{
+	return pipelineState_;
 }
 
 void PMDResource::CreateRootSignature()
@@ -170,7 +181,7 @@ void PMDResource::CreateRootSignature()
 	// シグネチャ設定
 	ComPtr<ID3DBlob> errBlob = nullptr;
 	ComPtr<ID3DBlob> sigBlob = nullptr;
-	D3D12SerializeRootSignature(&rsDesc,
+	result = D3D12SerializeRootSignature(&rsDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&sigBlob,
 		&errBlob);
@@ -203,6 +214,14 @@ bool PMDResource::CreatePipelineState()
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		// UV情報
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
+		D3D12_APPEND_ALIGNED_ELEMENT,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		// ボーン番号 2バイト整数型
+		{"BONE_NO", 0, DXGI_FORMAT_R16G16_UINT, 0,
+		D3D12_APPEND_ALIGNED_ELEMENT,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		//  2バイト整数型
+		{"WEIGHT", 0, DXGI_FORMAT_R32_FLOAT, 0,
 		D3D12_APPEND_ALIGNED_ELEMENT,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 	};
@@ -258,14 +277,14 @@ bool PMDResource::CreatePipelineState()
 	// ブレンド
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-	//// ルートシグネチャ生成
+	// ルートシグネチャ生成
 	plsDesc.pRootSignature = rootSig_.Get();
-	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(&pipelineState_));
-
+	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(pipelineState_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
 	return true;
 }
 
-void PMDResourceBinding::Init(ID3D12Device* dev, std::vector<BuffType> types)
+void PMDResourceBinding::Init(std::vector<BuffType> types)
 {
 	types_ = types;
 }

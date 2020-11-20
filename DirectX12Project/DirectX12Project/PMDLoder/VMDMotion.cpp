@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <cassert>
 #include <cstdint>
-
+#include <algorithm>
 #include <vector>
 
 using namespace DirectX;
 using namespace std;
 
-bool VMDMotion::Load(const char* path)
+bool VMDLoder::Load(const char* path)
 {
 	// Ž¯•ÊŽq"pmd"
 	FILE* fp = nullptr;
@@ -50,18 +50,26 @@ bool VMDMotion::Load(const char* path)
 		motionData.size() * sizeof(motionData[0]),
 		motionData.size() * sizeof(motionData[0]),
 		1, fp);
+
+	fclose(fp);
+
+	sort(motionData.begin(), motionData.end(),
+		[](const Motion& lval, const Motion& rval)
+		{
+			return lval.FrameNo < rval.FrameNo;
+		});
 	
 	for (int i = 0; i < motionCount; i++)
 	{
-		XMVECTOR quaternion = XMLoadFloat4(&motionData[i].Rotatation);
-		quaternions_.emplace(motionData[i].BoneName, quaternion);
+		vmdDatas_.data[motionData[i].BoneName].emplace_back(motionData[i].FrameNo, motionData[i].Rotatation, motionData[i].Location);
+		vmdDatas_.duration = max(vmdDatas_.duration, motionData[i].FrameNo);
 	}
 
-	fclose(fp);
+	
 	return true;
 }
 
-const QuaternionMap VMDMotion::GetQuaternionMap() const
+const VMDMotion VMDLoder::GetVMDData() const
 {
-	return quaternions_;
+	return vmdDatas_;
 }

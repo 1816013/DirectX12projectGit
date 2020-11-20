@@ -6,6 +6,7 @@
 #include <random>
 #include <DirectXTex.h>
 #include <stdint.h>
+#include <algorithm>
 #include "../Application.h"
 #include "../PMDLoder/PMDLoder.h"
 #include "../Common/StrOperater.h"
@@ -206,7 +207,7 @@ void Dx12Wrapper::SetUploadTexure(D3D12_SUBRESOURCE_DATA& subResData, ColTexType
 bool Dx12Wrapper::CreateDefaultTextures()
 {
 	cmdAllocator_->Reset();
-	cmdList_->Reset(cmdAllocator_.Get(), pipelineState_.Get());
+	cmdList_->Reset(cmdAllocator_.Get(), nullptr);
 	defTextures_.resize(static_cast<int>(ColTexType::Max));
 	// cmdListにテクスチャデータを積む
 	CreateMonoColorTexture(ColTexType::White,Color(0xff));	// 白
@@ -221,9 +222,10 @@ bool Dx12Wrapper::CreateDefaultTextures()
 bool Dx12Wrapper::CreateBasicDescriptors()
 {
 	auto& transResBind = pmdResource_->GetGroops(GroopType::TRANSFORM);
-	transResBind.Init(dev_.Get(), { BuffType::CBV, BuffType::CBV });
+	transResBind.Init({ BuffType::CBV, BuffType::CBV });
 	transResBind.AddBuffers(transformBuffer_.Get());
 	transResBind.AddBuffers(boneBuffer_.Get());
+
 	return true;
 }
 
@@ -329,7 +331,7 @@ bool Dx12Wrapper::CreateMaterialBufferView()
 		assert(SUCCEEDED(result));
 
 	auto& transResBind = pmdResource_->GetGroops(GroopType::MATERIAL);
-	transResBind.Init(dev_.Get(), { BuffType::CBV, BuffType::SRV, BuffType::SRV, BuffType::SRV, BuffType::SRV });
+	transResBind.Init({ BuffType::CBV, BuffType::SRV, BuffType::SRV, BuffType::SRV, BuffType::SRV });
 	array<pair<string, ID3D12Resource*>, 4>texPairList;
 	texPairList = { make_pair("bmp",defTextures_[static_cast<int>(ColTexType::White)].Get()),
 					make_pair("sph",defTextures_[static_cast<int>(ColTexType::White)].Get()),
@@ -362,135 +364,79 @@ bool Dx12Wrapper::CreateMaterialBufferView()
 
 bool Dx12Wrapper::CreateBoneBuffer()
 {
-	unordered_map<string, uint16_t>boneTable; 
-	const auto& bData = pmdActor_->GetPMDModel().GetBoneData();
-	for (int i = 0; i < bData.size(); ++i)
-	{
-		boneTable.emplace(bData[i].name, i);
-	}
 	HRESULT result = S_OK;
 	auto size = AligndValue(sizeof(XMFLOAT4X4) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	boneBuffer_ = CreateBuffer(size);
-	XMMATRIX* mappedBone = nullptr;
-
-	result = boneBuffer_->Map(0, nullptr, (void**)&mappedBone);
+	result = boneBuffer_->Map(0, nullptr, (void**)&mappedBone_);
 	assert(SUCCEEDED(result));
-
+	const auto& bData = pmdActor_->GetPMDModel().GetBoneData();
+	for (int i = 0; i < bData.size(); ++i)
+	{
+		boneTable_.emplace(bData[i].name, i);
+	}
 	// 全部単位行列に初期化
-	fill_n(mappedBone, 512, XMMatrixIdentity());	
+	fill_n(mappedBone_, 512, XMMatrixIdentity());	
+	
+	//vector<string> nameTbl = { "左ひじ","左腕","右ひじ","右腕" };
+	//float rotatetable[] = { XM_PIDIV2, XM_PIDIV4,-XM_PIDIV2, -XM_PIDIV4 };
+	//UpdateBones(0);
+	// 値をmapしているものにコピー
+	
+	return true;
+}
+
+void Dx12Wrapper::UpdateBones(int currentFrameNo)
+{
+	const auto& bData = pmdActor_->GetPMDModel().GetBoneData();
 	auto mats = pmdActor_->GetPMDModel().GetBoneMat();
 	mats.resize(bData.size());
 	fill(mats.begin(), mats.end(), XMMatrixIdentity());
-	auto& quaternion = vmdMotion_->GetQuaternionMap();
-	vector<string> nameTbl = { "左ひじ","左腕","右ひじ","右腕" };
-	float rotatetable[] = { XM_PIDIV2, XM_PIDIV4,-XM_PIDIV2, -XM_PIDIV4 };
-	for (int i = 0;i < bData.size(); ++i)
-	{
-		auto bidx = boneTable[bData[i].name];
+
+	auto a = vmdMotion_->GetVMDData().data;
+	for (auto& motion : vmdMotion_->GetVMDData().data)
+	{		
+		if (boneTable_.find(motion.first) == boneTable_.end())
+		{
+			continue;
+		}
+		auto bidx = boneTable_[motion.first];
 		auto& bpos = bData[bidx].pos;
-		// 回転させる
+		auto rit = find_if(motion.second.rbegin(), motion.second.rend(),
+			[currentFrameNo](const auto& v)
+			{
+				return v.frameNo <= currentFrameNo;
+			});
+
+		auto q = XMLoadFloat4(&motion.second[0].quaternion);
+		XMFLOAT3 mov(0, 0, 0);
+		if (rit != motion.second.rend())
+		{		
+			mov = rit->pos;
+			q = XMLoadFloat4(&rit->quaternion);
+			auto it = rit.base();
+			if (it != motion.second.end())
+			{
+				auto t = static_cast<float>((currentFrameNo - rit->frameNo)) / 
+					static_cast<float>((it->frameNo - rit->frameNo));
+				//q = (1.0f - t) * q + t * XMLoadFloat4(&it->quaternion);
+				q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
+				auto vPos = XMVectorScale(XMLoadFloat3(&mov), (1.0f - t)) + 
+							XMVectorScale(XMLoadFloat3(&it->pos),  t);
+				XMStoreFloat3(&mov,vPos);
+			}	
+		}
 		mats[bidx] = XMMatrixIdentity();
 		mats[bidx] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
-		mats[bidx] *= XMMatrixRotationQuaternion(quaternion.at(bData[i].name));
-		//mats[bidx] *= XMMatrixRotationZ(rotatetable[i]);
-		mats[bidx] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
-	}
-
-	RecursiveCalucurate(bData, mats, 0);
-	// 値をmapしているものにコピー
-	copy(mats.begin(), mats.end(), mappedBone);
-	boneBuffer_->Unmap(0, nullptr);
-
-	return true;
-}
-
-bool Dx12Wrapper::CreatePipelineState()
-{
-	HRESULT result = S_OK;
-	// パイプラインステートデスク
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC plsDesc = {};
-	// IA(InputAssembler)
-	// 入力レイアウト
-	D3D12_INPUT_ELEMENT_DESC layout[] = {
-		// 頂点情報
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 
-		0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		// 頂点情報
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		// UV情報
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		// ボーン番号 2バイト整数型
-		{"BONE_NO", 0, DXGI_FORMAT_R16G16_UINT, 0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		//  2バイト整数型
-		{"WEIGHT", 0, DXGI_FORMAT_R32_FLOAT, 0,
-		D3D12_APPEND_ALIGNED_ELEMENT,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
-	};
-	plsDesc.InputLayout.pInputElementDescs = layout;
-	plsDesc.InputLayout.NumElements = _countof(layout);
-
-	plsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-	// 頂点シェーダ
-	ComPtr<ID3DBlob> vsBlob = nullptr;
-	ComPtr<ID3DBlob> errBlob = nullptr;
-	result = D3DCompileFromFile(L"Shader/vs.hlsl",
-		nullptr, 
-		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"VS", "vs_5_1",
-		0,
-		0, vsBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
-	OutputFromErrorBlob(errBlob.Get());
-	assert(SUCCEEDED(result));	
-	plsDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
-	// ピクセルシェーダ
-	ComPtr<ID3DBlob> psBlob = nullptr;
-	result = D3DCompileFromFile(L"Shader/ps.hlsl",
-		nullptr,
-		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"PS", "ps_5_1",
-		0,
-		0, psBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
-	OutputFromErrorBlob(errBlob.Get());
-	assert(SUCCEEDED(result));
-
-	plsDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-
-	// ラスタライザ設定
-	plsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
-	// その他設定
-	// デプスとステンシル設定
-	plsDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	plsDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-
-	plsDesc.NodeMask = 0;
-	plsDesc.SampleDesc.Count = 1;
-	plsDesc.SampleDesc.Quality = 0;
-	plsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-	// 出力設定
-	plsDesc.NumRenderTargets = 1;
-	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-	// ブレンド
-	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+		// 回転
+		mats[bidx] *= XMMatrixRotationQuaternion(q);
 	
-	// ルートシグネチャ生成
-	plsDesc.pRootSignature = pmdResource_->GetRootSignature().Get();
-	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(&pipelineState_));
-	return true;
+		mats[bidx] *= XMMatrixTranslation(bpos.x, bpos.y , bpos.z);
+		// 移動
+		mats[bidx] *= XMMatrixTranslation(mov.x, mov.y, mov.z);
+	}
+	RecursiveCalucurate(bData, mats, 0);
+	copy(mats.begin(), mats.end(), mappedBone_);
 }
-
 
 void Dx12Wrapper::OutputFromErrorBlob(ID3DBlob* errBlob)
 {
@@ -562,7 +508,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	InitCommandSet();
 	
 	pmdActor_ = make_shared<PMDActor>(dev_.Get());
-	//const char* modelPath = "Resource/PMD/桜ミク/mikuXS雪ミク.pmd";
+	//const char* modelPath = "Resource/PMD/桜ミク/mikuXS桜ミク.pmd";
 	//const char* modelPath = "Resource/PMD/雲雀/雲雀Ver1.10SW.pmd";
 	const char* modelPath = "Resource/PMD/model/初音ミク.pmd";
 	//const char* modelPath = "Resource/PMD/model/巡音ルカ.pmd";
@@ -570,8 +516,8 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	//const char* modelPath = "Resource/PMD/古明地さとり/古明地さとり152Normal.pmd";
 	//const char* modelPath = "Resource/PMD/霊夢/reimu_F02.pmd";
 	pmdActor_->LoadModel(modelPath);
-	vmdMotion_ = make_shared<VMDMotion>();
-	vmdMotion_->Load("Resource/VMD/pose.vmd");
+	vmdMotion_ = make_shared<VMDLoder>();
+	vmdMotion_->Load("Resource/VMD/ヤゴコロダンス.vmd");
 	
 	CreateSwapChain(hwnd);
 	
@@ -606,14 +552,12 @@ bool Dx12Wrapper::Init(HWND hwnd)
 
 	// 座標変換SRV用ディスクリプタヒープ作成
 	CreateBasicDescriptors();
+	
+	// リソースデータをビルド
 	pmdResource_->Build({ GroopType::TRANSFORM, GroopType::MATERIAL });
-
-	if (!CreatePipelineState())
-	{
-		return false;
-	}
 	// ビューポートとシザー矩形初期化
 	InitViewRect();
+
 
 	return true;
 }
@@ -641,6 +585,10 @@ bool Dx12Wrapper::InitViewRect()
 
 bool Dx12Wrapper::Update()
 {
+	static auto lastTime = GetTickCount();
+	static size_t frame;
+	
+	//transResBind.AddBuffers(boneBuffer_.Get());
 	// モデルを動かす
 	static float modelY = 0.0f;
 	static float angle = 0.0f;
@@ -654,18 +602,20 @@ bool Dx12Wrapper::Update()
 	{
 		modelY -= 0.1f;
 	}
-	angle += 0.02f;
-	mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+	//angle += 0.02f;
+	//mappedBasicMatrix_->world = XMMatrixRotationY(angle);
 	mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
-
+	UpdateBones(frame);
 	// 画面クリア
 	//ClearDrawScreen();
-
+	
 	// 描画処理
 	DrawPMDModel();
 
 	// バッファフリップ
 	//DrawExcute();
+	frame = static_cast<float>((GetTickCount() - lastTime)) / (1000.0f / 30.0f);
+	frame = frame % vmdMotion_->GetVMDData().duration;
 	return true;
 }
 
@@ -722,7 +672,8 @@ void Dx12Wrapper::ClearDrawScreen()
 
 void Dx12Wrapper::DrawPMDModel()
 {
-	cmdList_->SetPipelineState(pipelineState_.Get());
+
+	cmdList_->SetPipelineState(pmdResource_->GetPipelineState().Get());
 	cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList_->IASetVertexBuffers(0, 1, &vbView_);
 	cmdList_->IASetIndexBuffer(&ibView_);
@@ -773,7 +724,6 @@ void Dx12Wrapper::ExecuteAndWait()
 			break;
 		}
 	}
-	
 }
 
 void Dx12Wrapper::Terminate()

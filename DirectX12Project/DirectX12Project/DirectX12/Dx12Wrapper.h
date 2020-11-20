@@ -31,7 +31,7 @@ enum class ColTexType
 class PMDResource;
 class PMDLoder;
 class PMDActor;
-class VMDMotion;
+class VMDLoder;
 struct Size;
 struct PMDBone;
 /// <summary>
@@ -138,12 +138,6 @@ private:
 	void CreateIndexBuffer();
 
 	/// <summary>
-	/// パイプラインステートオブジェクト作成
-	/// </summary>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreatePipelineState();
-
-	/// <summary>
 	/// ビューポートとシザー矩形初期化
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
@@ -210,6 +204,11 @@ private:
 	bool CreateBoneBuffer();
 
 	/// <summary>
+	/// ボーンを更新
+	/// </summary>
+	void UpdateBones(int currentFrameNo);
+
+	/// <summary>
 	/// エラー情報を出力に表示
 	/// </summary>
 	/// <param name="errBlob">エラー情報</param>
@@ -253,9 +252,6 @@ private:
 	ComPtr<ID3D12Resource> indexBuffer_ = nullptr;
 	D3D12_INDEX_BUFFER_VIEW ibView_ = {};	// インデックスバッファビュー
 
-	// パイプライン
-	ComPtr<ID3D12PipelineState> pipelineState_ = nullptr;
-
 	// シェーダ
 	ComPtr<ID3D10Blob> vertexShader_ = nullptr;
 	ComPtr<ID3D10Blob> pixelShader_ = nullptr;
@@ -276,7 +272,10 @@ private:
 	//// PMDモデルデータ関連
 	// 一時的にここに置く
 	std::shared_ptr<PMDActor>pmdActor_;
-	std::shared_ptr<VMDMotion>vmdMotion_;
+	std::shared_ptr<PMDResource> pmdResource_;
+	std::shared_ptr<VMDLoder>vmdMotion_;
+	std::unordered_map<std::string, uint16_t>boneTable_;
+	DirectX::XMMATRIX* mappedBone_ = nullptr;
 
 	// 定数バッファ
 	ComPtr<ID3D12Resource> transformBuffer_;	// 定数バッファ
@@ -291,10 +290,6 @@ private:
 
 	// バックバッファインデックス
 	uint32_t bbIdx_;
-	
-	std::shared_ptr<PMDResource> pmdResource_;
-
-	std::unordered_map<std::wstring, ID3D12Resource*>textureResource_;
 
 	// ボーンバッファ
 	ComPtr<ID3D12Resource> boneBuffer_;			// ボーン用バッファ

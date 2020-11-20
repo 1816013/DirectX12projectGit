@@ -3,12 +3,28 @@
 #include <DirectXMath.h>
 #include <string>
 
-using QuaternionMap = std::unordered_map<std::string, DirectX::XMVECTOR>;
-class VMDMotion
+struct VMDData
+{
+	size_t frameNo;
+	DirectX::XMFLOAT4 quaternion;
+	DirectX::XMFLOAT3 pos;
+	VMDData(int f, DirectX::XMFLOAT4 q, DirectX::XMFLOAT3 p) :
+		frameNo(f), quaternion(q),  pos(p) {};
+};
+
+
+using VMDDataMap = std::unordered_map<std::string,std::vector<VMDData>>;
+
+struct VMDMotion
+{
+	VMDDataMap data;
+	int duration;
+};
+class VMDLoder
 {
 public:
-	VMDMotion() = default;
-	~VMDMotion() = default;
+	VMDLoder() = default;
+	~VMDLoder() = default;
 
 	/// <summary>
 	/// pmdファイル読み込み
@@ -17,8 +33,8 @@ public:
 	/// <returns>true:成功　false:失敗</returns>
 	bool Load(const char* path);
 
-	const QuaternionMap GetQuaternionMap()const;
+	const VMDMotion GetVMDData()const;
 private:
-	QuaternionMap quaternions_;
+	VMDMotion vmdDatas_;
 };
 

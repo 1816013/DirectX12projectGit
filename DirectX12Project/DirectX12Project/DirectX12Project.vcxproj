@@ -148,6 +148,7 @@
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BMPLoder\BmpLoder.cpp" />
+    <ClCompile Include="DirectX12\cameraCtr.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="DirectX12\PMDActor.cpp" />
@@ -159,6 +160,7 @@
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="BMPLoder\BmpLoder.h" />
+    <ClInclude Include="DirectX12\cameraCtr.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
     <ClInclude Include="DirectX12\PMDActor.h" />
