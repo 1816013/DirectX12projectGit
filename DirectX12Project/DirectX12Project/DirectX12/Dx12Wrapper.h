@@ -232,6 +232,15 @@ private:
 	/// <param name="idx"></param>
 	void RecursiveCalucurate(const std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, int idx);
 
+	/// <summary>
+	/// ベジェ補間を使ってxからyを得る
+	/// 媒介変数tをxから求めて
+	/// yを求める
+	/// ベジェデータが二つなのは始点終点両方とも0だから
+	/// </summary>
+	/// <param name="x">入力値X</param>
+	/// <returns>出力値Y</returns>
+	float CalucurateFromBezier(float x, DirectX::XMFLOAT2 bz[2]);
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
 	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;

@@ -420,8 +420,9 @@ void Dx12Wrapper::UpdateBones(int currentFrameNo)
 					static_cast<float>((it->frameNo - rit->frameNo));
 				//q = (1.0f - t) * q + t * XMLoadFloat4(&it->quaternion);
 				q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
-				auto vPos = XMVectorScale(XMLoadFloat3(&mov), (1.0f - t)) + 
-							XMVectorScale(XMLoadFloat3(&it->pos),  t);
+				/*auto vPos = XMVectorScale(XMLoadFloat3(&mov), (1.0f - t)) + 
+							XMVectorScale(XMLoadFloat3(&it->pos),  t);*/
+				auto vPos = XMVectorLerp(XMLoadFloat3(&mov), XMLoadFloat3(&it->pos), t);
 				XMStoreFloat3(&mov,vPos);
 			}	
 		}
@@ -480,6 +481,30 @@ void Dx12Wrapper::RecursiveCalucurate(const std::vector<PMDBone>& bones, std::ve
 	}
 }
 
+float Dx12Wrapper::CalucurateFromBezier(float x, DirectX::XMFLOAT2 bz[2])
+{
+	// ベジェが直線だったらxを返す
+	if (bz[0].x == bz[1].x && bz[0].y == bz[1].y)
+	{
+		return x;
+	}
+	// P0(0.0)*(1-t)^3 + 3*P1*(1-t)^2*t + 3* P2*(1-t)*t^2 + P3(1,1)*(1-t)^3
+	// ---t = f(x);
+	// 3*P1.x*(1-t)^2*t + 3 * P2.x*(1-t)*t^2 + (1-t)^3
+	// 3*P1.x*(t - 2t^2 + t^3) + 3*P2.x*(t^2 - t^3) + t^3
+	// 次数で分ける
+	// t^3 = 3*P1.x + 3*P2.x +1
+	// t^2 = -6*P1.x + 3*P2.x;
+	// t = 3*P1.x
+
+	return 0.0f;
+}
+
+float Dx12Wrapper::CalucurateFromBezier(float x, DirectX::XMFLOAT2 bezier[4])
+{
+	return 0.0f;
+}
+
 Dx12Wrapper::Dx12Wrapper()
 {
 	
@@ -517,7 +542,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	//const char* modelPath = "Resource/PMD/霊夢/reimu_F02.pmd";
 	pmdActor_->LoadModel(modelPath);
 	vmdMotion_ = make_shared<VMDLoder>();
-	vmdMotion_->Load("Resource/VMD/ヤゴコロダンス.vmd");
+	vmdMotion_->Load("Resource/VMD/swing2.vmd");
 	
 	CreateSwapChain(hwnd);
 	
@@ -602,8 +627,8 @@ bool Dx12Wrapper::Update()
 	{
 		modelY -= 0.1f;
 	}
-	//angle += 0.02f;
-	//mappedBasicMatrix_->world = XMMatrixRotationY(angle);
+	angle = 0.02f;
+	mappedBasicMatrix_->world *= XMMatrixRotationY(angle);
 	mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
 	UpdateBones(frame);
 	// 画面クリア

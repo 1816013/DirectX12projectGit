@@ -114,9 +114,10 @@ void PMDActor::CreatePMDModelTexture()
 				toonBuffers[i]))
 			{
 				strToonPath = "Resource/PMD/toon/" + toonPaths[i];
-				CreateTexture(
+				auto result = CreateTexture(
 					StrOperater::GetWideStringfromString(strToonPath),
-					toonBuffers[i]);				
+					toonBuffers[i]);
+				assert(result);
 			}
 			textures_["toon"][i] = toonBuffers[i];
 			

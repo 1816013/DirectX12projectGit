@@ -58,10 +58,21 @@ bool VMDLoder::Load(const char* path)
 		{
 			return lval.FrameNo < rval.FrameNo;
 		});
+
+	constexpr size_t bzNos[] = { 3,7,11,15 };
+	constexpr size_t offset = 15;
 	
 	for (int i = 0; i < motionCount; i++)
 	{
-		vmdDatas_.data[motionData[i].BoneName].emplace_back(motionData[i].FrameNo, motionData[i].Rotatation, motionData[i].Location);
+		vmdDatas_.data[motionData[i].BoneName].emplace_back(
+			motionData[i].FrameNo,
+			motionData[i].Rotatation,
+			motionData[i].Location,
+			motionData[i].Interpolation[bzNos[0] + offset],
+			motionData[i].Interpolation[bzNos[1] + offset] ,
+			motionData[i].Interpolation[bzNos[2] + offset] ,
+			motionData[i].Interpolation[bzNos[3] + offset]
+			);
 		vmdDatas_.duration = max(vmdDatas_.duration, motionData[i].FrameNo);
 	}
 

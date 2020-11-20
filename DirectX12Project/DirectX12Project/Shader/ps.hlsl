@@ -21,7 +21,8 @@ float4 PS(VsOutput input) : SV_TARGET
 	float s = saturate(pow(saturate(dot(eray, lray)), speqular.a));
 	float2 spUv = input.norm.xy * float2(0.5f, -0.5f) + 0.5f;
 	float4 texCol = tex.Sample(smp, input.uv);
-	//return toonCol;
+	toonCol = float4(max(toonCol.rgb, float3(0.9, 0.9, 0.9)),toonCol.a);
+	return float4(toonCol.rgb,toonCol.a);
 	return float4(max(ambient.rgb,toonCol.rgb * diffuse.rgb) + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
