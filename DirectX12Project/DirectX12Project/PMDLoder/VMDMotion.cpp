@@ -34,11 +34,11 @@ bool VMDLoder::Load(const char* path)
 #pragma pack(1)
 	struct Motion		// 111Bytes 
 	{			
-		char BoneName[15]; // ボーン名
-		uint32_t FrameNo; // フレーム番号(読込時は現在のフレーム位置を0とした相対位置)
-		XMFLOAT3 Location; // 位置
-		XMFLOAT4 Rotatation; // Quaternion // 回転
-		uint8_t Interpolation[64]; // [4][4][4] // 補完
+		char boneName[15]; // ボーン名
+		uint32_t frameNo; // フレーム番号(読込時は現在のフレーム位置を0とした相対位置)
+		XMFLOAT3 location; // 位置
+		XMFLOAT4 rotatation; // Quaternion // 回転
+		uint8_t bezier[64]; // [4][4][4] // 補完
 	};
 #pragma pack()
 	uint32_t motionCount;
@@ -56,24 +56,25 @@ bool VMDLoder::Load(const char* path)
 	sort(motionData.begin(), motionData.end(),
 		[](const Motion& lval, const Motion& rval)
 		{
-			return lval.FrameNo < rval.FrameNo;
+			return lval.frameNo < rval.frameNo;
 		});
 
+	// ベジェのデータで必要なのが{3,7,11,15}+15
 	constexpr size_t bzNos[] = { 3,7,11,15 };
 	constexpr size_t offset = 15;
 	
 	for (int i = 0; i < motionCount; i++)
 	{
-		vmdDatas_.data[motionData[i].BoneName].emplace_back(
-			motionData[i].FrameNo,
-			motionData[i].Rotatation,
-			motionData[i].Location,
-			motionData[i].Interpolation[bzNos[0] + offset],
-			motionData[i].Interpolation[bzNos[1] + offset] ,
-			motionData[i].Interpolation[bzNos[2] + offset] ,
-			motionData[i].Interpolation[bzNos[3] + offset]
+		vmdDatas_.data[motionData[i].boneName].emplace_back(
+			motionData[i].frameNo,
+			motionData[i].rotatation,
+			motionData[i].location,
+			motionData[i].bezier[bzNos[0] + offset],
+			motionData[i].bezier[bzNos[1] + offset] ,
+			motionData[i].bezier[bzNos[2] + offset] ,
+			motionData[i].bezier[bzNos[3] + offset]
 			);
-		vmdDatas_.duration = max(vmdDatas_.duration, motionData[i].FrameNo);
+		vmdDatas_.duration = max(vmdDatas_.duration, motionData[i].frameNo);
 	}
 
 	

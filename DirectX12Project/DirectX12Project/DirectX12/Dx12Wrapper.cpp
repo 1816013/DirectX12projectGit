@@ -381,7 +381,6 @@ bool Dx12Wrapper::CreateBoneBuffer()
 	//float rotatetable[] = { XM_PIDIV2, XM_PIDIV4,-XM_PIDIV2, -XM_PIDIV4 };
 	//UpdateBones(0);
 	// 値をmapしているものにコピー
-	
 	return true;
 }
 
@@ -395,12 +394,14 @@ void Dx12Wrapper::UpdateBones(int currentFrameNo)
 	auto a = vmdMotion_->GetVMDData().data;
 	for (auto& motion : vmdMotion_->GetVMDData().data)
 	{		
+		// ボーンがあるかどうか
 		if (boneTable_.find(motion.first) == boneTable_.end())
 		{
 			continue;
 		}
 		auto bidx = boneTable_[motion.first];
 		auto& bpos = bData[bidx].pos;
+		// 今のフレーム時間よりも低いものを捜索
 		auto rit = find_if(motion.second.rbegin(), motion.second.rend(),
 			[currentFrameNo](const auto& v)
 			{
@@ -416,16 +417,21 @@ void Dx12Wrapper::UpdateBones(int currentFrameNo)
 			auto it = rit.base();
 			if (it != motion.second.end())
 			{
-				auto t = static_cast<float>((currentFrameNo - rit->frameNo)) / 
+				// 線形補間
+				auto t = static_cast<float>((currentFrameNo - rit->frameNo)) /
 					static_cast<float>((it->frameNo - rit->frameNo));
+				// ベジェ補間
+				t = CalucurateFromBezier(t, it->bz);
+
+				// 補間を適用
 				//q = (1.0f - t) * q + t * XMLoadFloat4(&it->quaternion);
 				q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
-				/*auto vPos = XMVectorScale(XMLoadFloat3(&mov), (1.0f - t)) + 
-							XMVectorScale(XMLoadFloat3(&it->pos),  t);*/
 				auto vPos = XMVectorLerp(XMLoadFloat3(&mov), XMLoadFloat3(&it->pos), t);
-				XMStoreFloat3(&mov,vPos);
+				XMStoreFloat3(&mov, vPos);
+				
 			}	
 		}
+		
 		mats[bidx] = XMMatrixIdentity();
 		mats[bidx] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
 		// 回転
@@ -481,7 +487,7 @@ void Dx12Wrapper::RecursiveCalucurate(const std::vector<PMDBone>& bones, std::ve
 	}
 }
 
-float Dx12Wrapper::CalucurateFromBezier(float x, DirectX::XMFLOAT2 bz[2])
+float Dx12Wrapper::CalucurateFromBezier(float x, const DirectX::XMFLOAT2 bz[2], size_t n)
 {
 	// ベジェが直線だったらxを返す
 	if (bz[0].x == bz[1].x && bz[0].y == bz[1].y)
@@ -497,12 +503,213 @@ float Dx12Wrapper::CalucurateFromBezier(float x, DirectX::XMFLOAT2 bz[2])
 	// t^2 = -6*P1.x + 3*P2.x;
 	// t = 3*P1.x
 
-	return 0.0f;
+	// MMDのベジェの特性上t=xが近いから初期値t=x
+	float t = x;
+	float k3 = 3 * bz[0].x - 3 * bz[1].x + 1;	// t^3
+	float k2 = -6 * bz[0].x + 3 * bz[1].x;		// t^2
+	float k1 = 3 * bz[0].x;						// t
+
+	// 誤差の定数
+	const float epsilon = 0.0005f;
+	for (size_t i = 0; i < n; ++i)
+	{
+		auto tmpt = k3 * t * t * t + k2 * t * t + k1 * t - x;
+		if (abs(tmpt) < epsilon)
+		{					
+			break;
+		}
+		t -= tmpt / 2;
+	}
+	// ここでtの近似値が求まったのでyを求めて返す
+	//float y = 0.0f;
+	float yk3 = 3 * bz[0].y - 3 * bz[1].y + 1;	// t^3
+	float yk2 = -6 * bz[0].y + 3 * bz[1].y;		// t^2
+	float yk1 = 3 * bz[0].y;					// t
+	float y = yk3 * t * t * t + yk2 * t * t + yk1 * t;
+	assert(y >= 0.0f && y <= 1.0f);
+	return y;
 }
 
-float Dx12Wrapper::CalucurateFromBezier(float x, DirectX::XMFLOAT2 bezier[4])
+void Dx12Wrapper::CreateRenderTargetTexture()
 {
-	return 0.0f;
+	HRESULT result = S_OK;
+	// バッファの作成
+	auto bbResDesc = bbResouces[0]->GetDesc();
+	auto resDesc = CD3DX12_RESOURCE_DESC::Tex2D(bbResDesc.Format, bbResDesc.Width, bbResDesc.Height);
+	auto heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	result = dev_->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		nullptr,
+		IID_PPV_ARGS(rtTexture_.ReleaseAndGetAddressOf())
+	);
+	assert(SUCCEEDED(result));
+
+	// 2つのディスクリプタヒープ作成
+	// レンダーターゲットビュー
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV; // レンダーターゲットビュー
+	rtvHeapDesc.NodeMask = 0;
+	rtvHeapDesc.NumDescriptors = 1;// 表と裏画面用
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	result = dev_->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(firstRtvHeap_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format = resDesc.Format;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	auto rtvHeapPos = firstRtvHeap_->GetCPUDescriptorHandleForHeapStart();
+	dev_->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, rtvHeapPos);
+
+	// シェーダーリソースビュー
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // レンダーターゲットビュー
+	srvHeapDesc.NodeMask = 0;
+	srvHeapDesc.NumDescriptors = 1;// 表と裏画面用
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	result = dev_->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(firstSrvHeap_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = resDesc.Format;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	auto srvHeapPos = firstSrvHeap_->GetCPUDescriptorHandleForHeapStart();
+	dev_->CreateShaderResourceView(rtTexture_.Get(), &srvDesc, srvHeapPos);
+}
+
+void Dx12Wrapper::CreateBoardPolyVerts()
+{
+	XMFLOAT3 verts[] = { {-1,-1,0.1f},
+	{-1,1,0.1f},
+	{1,-1,0.1f},
+	{1,1,0.1f} };
+	boardPolyVerts_ = CreateBuffer(sizeof(verts));
+	XMFLOAT3* mappedData = nullptr;
+	boardPolyVerts_->Map(0, nullptr, (void**)&mappedData);
+	copy(begin(verts), end(verts), mappedData);
+	boardPolyVerts_->Unmap(0, nullptr);
+
+	// ビュー作成
+	boardVBView_.BufferLocation = boardPolyVerts_->GetGPUVirtualAddress();
+	boardVBView_.StrideInBytes = sizeof(verts[0]);
+	boardVBView_.SizeInBytes = static_cast<UINT>(sizeof(verts));
+
+}
+
+void Dx12Wrapper::CreateBoardPipeline()
+{
+	HRESULT result = S_OK;
+	// パイプラインステートデスク
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC plsDesc = {};
+	// IA(InputAssembler)
+	// 入力レイアウト
+	D3D12_INPUT_ELEMENT_DESC layout[] = {
+		// 頂点情報
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}		
+	};
+	plsDesc.InputLayout.pInputElementDescs = layout;
+	plsDesc.InputLayout.NumElements = _countof(layout);
+
+	plsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	// 頂点シェーダ
+	ComPtr<ID3DBlob> vsBlob = nullptr;
+	ComPtr<ID3DBlob> errBlob = nullptr;
+	result = D3DCompileFromFile(L"Shader/boardVS.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"VS", "vs_5_1",
+		0,
+		0, vsBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+	OutputFromErrorBlob(errBlob.Get());
+	assert(SUCCEEDED(result));
+	plsDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
+
+	// ピクセルシェーダ
+	ComPtr<ID3DBlob> psBlob = nullptr;
+	result = D3DCompileFromFile(L"Shader/boardPS.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"PS", "ps_5_1",
+		0,
+		0, psBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+	OutputFromErrorBlob(errBlob.Get());
+	assert(SUCCEEDED(result));
+
+	plsDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+
+	// ラスタライザ設定
+	plsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+
+	// その他設定
+	// デプスとステンシル設定
+	plsDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	plsDesc.DepthStencilState.DepthEnable = false;
+	//plsDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+
+	plsDesc.NodeMask = 0;
+	plsDesc.SampleDesc.Count = 1;
+	plsDesc.SampleDesc.Quality = 0;
+	plsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	// 出力設定
+	plsDesc.NumRenderTargets = 1;
+	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// ブレンド
+	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	// ルートシグネチャ生成
+	//HRESULT result = S_OK;
+	// ルートシグネチャ
+	D3D12_ROOT_PARAMETER rp[1] = {};
+	D3D12_DESCRIPTOR_RANGE range[1] = {};
+
+	// レンジ
+	// 行列定数バッファ
+	range[0] = CD3DX12_DESCRIPTOR_RANGE(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
+		1,// デスクリプタ数	t0～t0まで
+		0);// ベースレジスタ番号 t0	
+
+	// ルートパラメータ
+	// 座標変換
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
+		rp[0],	// ルートパラメータ
+		1,		// レンジ数
+		&range[0],// レンジ先頭アドレス
+		D3D12_SHADER_VISIBILITY_PIXEL);	
+
+	CD3DX12_ROOT_SIGNATURE_DESC rsDesc(1, rp);
+	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	// シグネチャ設定
+	//ComPtr<ID3DBlob> errBlob = nullptr;
+	ComPtr<ID3DBlob> sigBlob = nullptr;
+	result = D3D12SerializeRootSignature(&rsDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&sigBlob,
+		&errBlob);
+	OutputFromErrorBlob(errBlob.Get());
+	assert(SUCCEEDED(result));
+
+	// ルートシグネチャの生成
+	result = dev_->CreateRootSignature(0,
+		sigBlob->GetBufferPointer(),
+		sigBlob->GetBufferSize(),
+		IID_PPV_ARGS(boardSig_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+	plsDesc.pRootSignature = boardSig_.Get();
+	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(boardPipeLine_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
 }
 
 Dx12Wrapper::Dx12Wrapper()
@@ -550,12 +757,19 @@ bool Dx12Wrapper::Init(HWND hwnd)
 
 	// レンダーターゲットを作成
 	CreateRenderTargetDescriptorHeap();
+
+	// 1パス目書き込みバッファと対応するRTV,
+	// SRVを作る
+	CreateRenderTargetTexture();
 	// 深度バッファビュー作成
 	CreateDepthBufferView();
 
 	// 頂点バッファを作成
 	CreateVertices();
 	CreateVertexBuffer();
+
+	// 板ポリバーテックス作成
+	CreateBoardPolyVerts();
 
 	// インデックスバッファを作成
 	CreateIndices();
@@ -582,6 +796,8 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	pmdResource_->Build({ GroopType::TRANSFORM, GroopType::MATERIAL });
 	// ビューポートとシザー矩形初期化
 	InitViewRect();
+	// 板ポリパイプライン作成
+	CreateBoardPipeline();
 
 
 	return true;
@@ -610,10 +826,9 @@ bool Dx12Wrapper::InitViewRect()
 
 bool Dx12Wrapper::Update()
 {
-	static auto lastTime = GetTickCount();
+	static auto lastTime = GetTickCount64();
 	static size_t frame;
-	
-	//transResBind.AddBuffers(boneBuffer_.Get());
+	auto milisec = GetTickCount64() - lastTime;
 	// モデルを動かす
 	static float modelY = 0.0f;
 	static float angle = 0.0f;
@@ -627,20 +842,26 @@ bool Dx12Wrapper::Update()
 	{
 		modelY -= 0.1f;
 	}
-	angle = 0.02f;
-	mappedBasicMatrix_->world *= XMMatrixRotationY(angle);
+	/*angle = 0.02f;
+	mappedBasicMatrix_->world *= XMMatrixRotationY(angle);*/
 	mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
-	UpdateBones(frame);
-	// 画面クリア
-	//ClearDrawScreen();
+	UpdateBones(frame % vmdMotion_->GetVMDData().duration);
 	
 	// 描画処理
 	DrawPMDModel();
 
-	// バッファフリップ
-	//DrawExcute();
-	frame = static_cast<float>((GetTickCount() - lastTime)) / (1000.0f / 30.0f);
-	frame = frame % vmdMotion_->GetVMDData().duration;
+	// 板ポリ表示
+	cmdList_->SetPipelineState(boardPipeLine_.Get());
+	cmdList_->SetGraphicsRootSignature(boardSig_.Get());
+	ID3D12DescriptorHeap* deskHeaps[] = { firstSrvHeap_.Get() };
+	cmdList_->SetDescriptorHeaps(1, deskHeaps);
+	cmdList_->SetGraphicsRootDescriptorTable(0, firstSrvHeap_->GetGPUDescriptorHandleForHeapStart());
+	cmdList_->IASetVertexBuffers(0, 1, &boardVBView_);
+	cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	cmdList_->DrawInstanced(4, 1, 0, 0);
+
+	// 30フレームで動く
+	frame = 30.0f * milisec / 1000.0f;
 	return true;
 }
 
@@ -656,7 +877,7 @@ void Dx12Wrapper::DrawExcute()
 	cmdList_->Close();
 
 	ExecuteAndWait();
-	swapchain_->Present(1, 0);
+	swapchain_->Present(0, 0);
 }
 
 void Dx12Wrapper::ClearDrawScreen()
@@ -679,6 +900,7 @@ void Dx12Wrapper::ClearDrawScreen()
 	auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	rtvHeap.ptr += static_cast<SIZE_T>(bbIdx_)* rtvIncSize;
+	D3D12_CPU_DESCRIPTOR_HANDLE  rtvHeaps[] = { firstRtvHeap_->GetCPUDescriptorHandleForHeapStart() };
 	cmdList_->OMSetRenderTargets(1, &rtvHeap, false, &depthDescHeap_->GetCPUDescriptorHandleForHeapStart());
 	// 画面をクリア(色変える)
 	float clsCol[4] = { 1.0f, 0.0f, 0.0f, 1.0f };

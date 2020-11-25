@@ -240,7 +240,24 @@ private:
 	/// </summary>
 	/// <param name="x">入力値X</param>
 	/// <returns>出力値Y</returns>
-	float CalucurateFromBezier(float x, DirectX::XMFLOAT2 bz[2]);
+	float CalucurateFromBezier(float x, const DirectX::XMFLOAT2 bz[2], size_t n = 8);
+
+	/// <summary>
+	/// ポストエフェクトの1パスめをレンダリングする
+	/// テクスチャを作る
+	/// </summary>
+	void CreateRenderTargetTexture();
+
+	/// <summary>
+	/// 板ポリの頂点情報作成
+	/// </summary>
+	void CreateBoardPolyVerts();
+
+	/// <summary>
+	/// 板ポリパイプライン作成
+	/// </summary>
+	void CreateBoardPipeline();
+
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
 	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;
@@ -304,4 +321,17 @@ private:
 	ComPtr<ID3D12Resource> boneBuffer_;			// ボーン用バッファ
 	ComPtr<ID3D12DescriptorHeap> boneDescHeap_;			// ボーン用ディスクリプタヒープ
 
+	// マルチパスレンダリング
+	// 1パス目のビュー
+	ComPtr<ID3D12DescriptorHeap> firstRtvHeap_ = nullptr;	
+	ComPtr<ID3D12DescriptorHeap> firstSrvHeap_ = nullptr;
+	//ポストエフェクト用テクスチャ
+	ComPtr<ID3D12Resource> rtTexture_ = nullptr;
+
+	// 板ポリ頂点
+	// TRIANGLE_STRIPで作る
+	ComPtr<ID3D12Resource> boardPolyVerts_ = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW boardVBView_;
+	ComPtr<ID3D12PipelineState> boardPipeLine_ = nullptr;
+	ComPtr<ID3D12RootSignature> boardSig_ = nullptr;
 };
