@@ -322,7 +322,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> boneDescHeap_;			// ボーン用ディスクリプタヒープ
 
 	// マルチパスレンダリング
-	// 1パス目のビュー
+	// ポストエフェクトレンダーターゲット用テクスチャ
 	ComPtr<ID3D12DescriptorHeap> firstRtvHeap_ = nullptr;	
 	ComPtr<ID3D12DescriptorHeap> firstSrvHeap_ = nullptr;
 	//ポストエフェクト用テクスチャ
@@ -334,4 +334,10 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW boardVBView_;
 	ComPtr<ID3D12PipelineState> boardPipeLine_ = nullptr;
 	ComPtr<ID3D12RootSignature> boardSig_ = nullptr;
+
+	// 時間用
+	ULONGLONG oldTime = 0;
+
+	// ノーマルマップ用
+	ComPtr<ID3D12Resource> normalMapTex_ = nullptr;
 };

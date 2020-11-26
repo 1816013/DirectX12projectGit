@@ -21,8 +21,6 @@ cbuffer Material:register(b2)
 
 }
 
-
-
 // テクスチャ
 Texture2D<float4>tex:register(t0);	// 通常テクスチャ
 Texture2D<float4>sph:register(t1);	// 乗算スフィアマップ

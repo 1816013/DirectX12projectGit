@@ -20,8 +20,9 @@ public:
 	PMDLoder& GetPMDModel();
 	const Textures& GetTextures(std::string key);
 	void DrawModel(ID3D12GraphicsCommandList& cmdList);
-private:
 	bool CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res);
+private:
+	
 
 	/// <summary>
 	/// バーテクスバッファ作成pmd以外でも使うかもその時は親クラスから継承

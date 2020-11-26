@@ -264,7 +264,7 @@ bool Dx12Wrapper::CreateTransformBuffer()
 	viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV4 , // 画角(FOV)
 		static_cast<float>(wSize.width) / static_cast<float>(wSize.height), 
 		0.1f,	// ニア(近い)
-		300.0f);	//　ファー(遠い)
+		1000.0f);	//　ファー(遠い)
 
 	mappedBasicMatrix_ = make_shared<BasicMatrix>();
 	// 後でいじるために開けっ放しにしておく
@@ -538,12 +538,18 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	auto resDesc = CD3DX12_RESOURCE_DESC::Tex2D(bbResDesc.Format, bbResDesc.Width, bbResDesc.Height);
 	auto heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	
+	D3D12_CLEAR_VALUE clearValue = {};
+	float col[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
+	copy_n(col, 4, clearValue.Color);
+	clearValue.Format = resDesc.Format;
+
 	result = dev_->CreateCommittedResource(
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		nullptr,
+		&clearValue,
 		IID_PPV_ARGS(rtTexture_.ReleaseAndGetAddressOf())
 	);
 	assert(SUCCEEDED(result));
@@ -560,18 +566,20 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = resDesc.Format;
 	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Texture2D.PlaneSlice = 0;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	auto rtvHeapPos = firstRtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	dev_->CreateRenderTargetView(rtTexture_.Get(), &rtvDesc, rtvHeapPos);
 
 	// シェーダーリソースビュー
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // レンダーターゲットビュー
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; 
 	srvHeapDesc.NodeMask = 0;
-	srvHeapDesc.NumDescriptors = 1;// 表と裏画面用
+	srvHeapDesc.NumDescriptors = 2;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	result = dev_->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(firstSrvHeap_.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(result));
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = resDesc.Format;
 	srvDesc.Texture2D.MipLevels = 1;
@@ -580,6 +588,10 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	auto srvHeapPos = firstSrvHeap_->GetCPUDescriptorHandleForHeapStart();
 	dev_->CreateShaderResourceView(rtTexture_.Get(), &srvDesc, srvHeapPos);
+	srvHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	srvDesc.Format = normalMapTex_->GetDesc().Format;
+	dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, srvHeapPos);
 }
 
 void Dx12Wrapper::CreateBoardPolyVerts()
@@ -668,7 +680,6 @@ void Dx12Wrapper::CreateBoardPipeline()
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
 	// ルートシグネチャ生成
-	//HRESULT result = S_OK;
 	// ルートシグネチャ
 	D3D12_ROOT_PARAMETER rp[1] = {};
 	D3D12_DESCRIPTOR_RANGE range[1] = {};
@@ -677,7 +688,7 @@ void Dx12Wrapper::CreateBoardPipeline()
 	// 行列定数バッファ
 	range[0] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
-		1,// デスクリプタ数	t0～t0まで
+		2,// デスクリプタ数	t0～t0まで
 		0);// ベースレジスタ番号 t0	
 
 	// ルートパラメータ
@@ -688,7 +699,10 @@ void Dx12Wrapper::CreateBoardPipeline()
 		&range[0],// レンジ先頭アドレス
 		D3D12_SHADER_VISIBILITY_PIXEL);	
 
-	CD3DX12_ROOT_SIGNATURE_DESC rsDesc(1, rp);
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+	samplerDesc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
+
+	CD3DX12_ROOT_SIGNATURE_DESC rsDesc(1, rp, 1, samplerDesc);
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// シグネチャ設定
@@ -740,16 +754,18 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	InitCommandSet();
 	
 	pmdActor_ = make_shared<PMDActor>(dev_.Get());
-	//const char* modelPath = "Resource/PMD/桜ミク/mikuXS桜ミク.pmd";
+	const char* modelPath = "Resource/PMD/桜ミク/mikuXS桜ミク.pmd";
 	//const char* modelPath = "Resource/PMD/雲雀/雲雀Ver1.10SW.pmd";
-	const char* modelPath = "Resource/PMD/model/初音ミク.pmd";
+	//const char* modelPath = "Resource/PMD/model/初音ミク.pmd";
+	//const char* modelPath = "Resource/PMD/model/初音ミクmetal.pmd";
 	//const char* modelPath = "Resource/PMD/model/巡音ルカ.pmd";
 	//const char* modelPath = "Resource/PMD/我那覇響v1.0/我那覇響v1.pmd";
 	//const char* modelPath = "Resource/PMD/古明地さとり/古明地さとり152Normal.pmd";
 	//const char* modelPath = "Resource/PMD/霊夢/reimu_F02.pmd";
 	pmdActor_->LoadModel(modelPath);
 	vmdMotion_ = make_shared<VMDLoder>();
-	vmdMotion_->Load("Resource/VMD/swing2.vmd");
+	vmdMotion_->Load("Resource/VMD/ヤゴコロダンス.vmd");
+	pmdActor_->CreateTexture(L"Resource/image/NormalMap.png", normalMapTex_);
 	
 	CreateSwapChain(hwnd);
 	
@@ -827,30 +843,63 @@ bool Dx12Wrapper::InitViewRect()
 bool Dx12Wrapper::Update()
 {
 	static auto lastTime = GetTickCount64();
+
+	auto nowTime = GetTickCount64();
+	float deltaTime = static_cast<float>(nowTime - oldTime) / 1000;
+	oldTime = nowTime;
 	static size_t frame;
 	auto milisec = GetTickCount64() - lastTime;
+
 	// モデルを動かす
-	static float modelY = 0.0f;
-	static float angle = 0.0f;
+	static float posz = 0.0f;
+	float move = 0.0f;
+	float angle = 0.0f;
 	BYTE keyState[256];
 	auto result = GetKeyboardState(keyState);
 	if (keyState[VK_UP] & 0x80)
 	{
-		modelY += 0.1f;
+		move += 20 * deltaTime;		
 	}
 	if( keyState[VK_DOWN] & 0x80)
 	{
-		modelY -= 0.1f;
+		move += -20* deltaTime;
 	}
-	/*angle = 0.02f;
-	mappedBasicMatrix_->world *= XMMatrixRotationY(angle);*/
-	mappedBasicMatrix_->world *= XMMatrixTranslation(0, modelY, 0);
-	UpdateBones(frame % vmdMotion_->GetVMDData().duration);
+	if (keyState[VK_RIGHT] & 0x80)
+	{
+		angle += 5 * deltaTime;
+	}
+	if (keyState[VK_LEFT] & 0x80)
+	{
+		angle += -5 * deltaTime;
+	}
+	posz += move;
+	mappedBasicMatrix_->world *= XMMatrixTranslation(0, 0, -posz);
+	mappedBasicMatrix_->world *= XMMatrixRotationY(angle);
+	mappedBasicMatrix_->world *= XMMatrixTranslation(0, 0, posz);
+	mappedBasicMatrix_->world *= XMMatrixTranslation(0, 0, move);
 	
-	// 描画処理
-	DrawPMDModel();
+	
+	UpdateBones(frame % vmdMotion_->GetVMDData().duration);
 
-	// 板ポリ表示
+	// --描画処理
+	// -板ポリに書き込む
+	// モデル描画
+	DrawPMDModel();
+	// リソースバリアを設定レンダーターゲットからシェーダ
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		rtTexture_.Get(),	// リソース
+		D3D12_RESOURCE_STATE_RENDER_TARGET,	// 前ターゲット
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
+	);
+	cmdList_->ResourceBarrier(1, &barrier);
+
+	// 板ポリからバックバッファのレンダーターゲットにセット
+	// 板ポリの内容をバックバッファに書き込む
+	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	auto bbRtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+	bbRtvHeap.ptr += static_cast<SIZE_T>(bbIdx_)* rtvIncSize;
+	cmdList_->OMSetRenderTargets(1, &bbRtvHeap, false, nullptr);
+	// 板ポリ描画
 	cmdList_->SetPipelineState(boardPipeLine_.Get());
 	cmdList_->SetGraphicsRootSignature(boardSig_.Get());
 	ID3D12DescriptorHeap* deskHeaps[] = { firstSrvHeap_.Get() };
@@ -859,6 +908,14 @@ bool Dx12Wrapper::Update()
 	cmdList_->IASetVertexBuffers(0, 1, &boardVBView_);
 	cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	cmdList_->DrawInstanced(4, 1, 0, 0);
+
+	// リソースバリアを設定シェーダからレンダーターゲット
+	barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		rtTexture_.Get(),	// リソース
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,	// 前ターゲット		
+		D3D12_RESOURCE_STATE_RENDER_TARGET// 後ろターゲット
+	);
+	cmdList_->ResourceBarrier(1, &barrier);
 
 	// 30フレームで動く
 	frame = 30.0f * milisec / 1000.0f;
@@ -884,7 +941,6 @@ void Dx12Wrapper::ClearDrawScreen()
 {
 	// バックバッファインデックス設定
 	bbIdx_ = swapchain_->GetCurrentBackBufferIndex();
-
 	// コマンドリセット
 	cmdAllocator_->Reset();
 	cmdList_->Reset(cmdAllocator_.Get(), nullptr);
@@ -896,15 +952,13 @@ void Dx12Wrapper::ClearDrawScreen()
 	);
 	cmdList_->ResourceBarrier(1, &barrier);
 
-	// レンダーターゲットをセット	
-	auto rtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
-	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	rtvHeap.ptr += static_cast<SIZE_T>(bbIdx_)* rtvIncSize;
+	// 板ポリのレンダーターゲットをセット	
 	D3D12_CPU_DESCRIPTOR_HANDLE  rtvHeaps[] = { firstRtvHeap_->GetCPUDescriptorHandleForHeapStart() };
-	cmdList_->OMSetRenderTargets(1, &rtvHeap, false, &depthDescHeap_->GetCPUDescriptorHandleForHeapStart());
+	D3D12_CPU_DESCRIPTOR_HANDLE  dsvHeaps[] = { depthDescHeap_->GetCPUDescriptorHandleForHeapStart() };
+	cmdList_->OMSetRenderTargets(1, rtvHeaps, false, dsvHeaps);
 	// 画面をクリア(色変える)
 	float clsCol[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
-	cmdList_->ClearRenderTargetView(rtvHeap, clsCol, 0, nullptr);
+	cmdList_->ClearRenderTargetView(rtvHeaps[0], clsCol, 0, nullptr);
 	cmdList_->ClearDepthStencilView(
 		depthDescHeap_->GetCPUDescriptorHandleForHeapStart(),
 		D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
@@ -1101,6 +1155,7 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = swDesc.Format;
 	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Texture2D.PlaneSlice = 0;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	auto heap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
