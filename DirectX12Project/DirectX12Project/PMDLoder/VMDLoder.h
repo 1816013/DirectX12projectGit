@@ -28,6 +28,7 @@ struct VMDMotion
 	VMDDataMap data;
 	uint32_t duration;
 };
+
 class VMDLoder
 {
 public:

@@ -4,10 +4,23 @@ SamplerState smp:register(s0);
 Texture2D<float4>rtvTex:register(t0);
 Texture2D<float4>normalTex:register(t1);
 
+cbuffer Const:register(b0)
+{
+	float2 pos;	// ç¿ïW
+	float time;	// éûä‘
+}
+
 float4 PS(BoardOutput input) : SV_TARGET
 {
-	float2 nTex = normalTex.Sample(smp,input.uv).xy;
-	nTex = nTex * 2.0f - 1.0f;
+	float2 nUV = input.uv - 0.5f;
+	nUV /=time;
+	nUV += 0.5;
+	
+
+	float4 nTex = normalTex.Sample(smp, nUV);
+	
+	nUV = nUV * 2.0f - 1.0f;
+	//return nTex;
 
 	float4 col = rtvTex.Sample(smp, input.uv);
 	float w, h, level;
@@ -15,7 +28,7 @@ float4 PS(BoardOutput input) : SV_TARGET
 	float4 ret = float4(0, 0, 0, 0);
 	float2 dt = float2(1.0f / w, 1.0f / h);
 	
-	return rtvTex.Sample(smp, input.uv + nTex * dt * 35);
+	return rtvTex.Sample(smp, input.uv + nTex.xy * dt * 35);
 
 //	return ret;
 

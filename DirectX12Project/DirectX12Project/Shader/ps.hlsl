@@ -23,9 +23,9 @@ float4 PS(VsOutput input) : SV_TARGET
 	float4 texCol = tex.Sample(smp, input.uv);
 	//toonCol = float4(max(toonCol.rgb, float3(0.9, 0.9, 0.9)),toonCol.a);
 	//return float4(toonCol.rgb,toonCol.a);
-	return float4(max(ambient,toonCol.rgb * diffuse.rgb) + speqular.rgb * s, diffuse.a)
+	return float4(max(ambient.rgb,toonCol.rgb * diffuse.rgb) + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)
-		+ float4(texCol.rgb * ambient * 0.5,1);
+		+ float4(texCol.rgb * ambient.rgb * 0.5,1);
 }

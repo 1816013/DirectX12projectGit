@@ -1,4 +1,4 @@
-#include "VMDMotion.h"
+#include "VMDLoder.h"
 #include <Windows.h>
 #include <stdio.h>
 #include <cassert>
@@ -63,7 +63,8 @@ bool VMDLoder::Load(const char* path)
 	constexpr size_t bzNos[] = { 3,7,11,15 };
 	constexpr size_t offset = 15;
 	
-	for (int i = 0; i < motionCount; i++)
+	vmdDatas_.duration = 0;
+	for (uint32_t i = 0; i < motionCount; i++)
 	{
 		vmdDatas_.data[motionData[i].boneName].emplace_back(
 			motionData[i].frameNo,

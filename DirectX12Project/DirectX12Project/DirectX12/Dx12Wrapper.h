@@ -10,30 +10,32 @@
 
 using Microsoft::WRL::ComPtr;
 
-struct Color
+struct BoardConstBuffer
 {
-	uint8_t r, g, b, a;
-	Color() :r(0), g(0), b(0), a(255) {};
-	Color(uint8_t inr, uint8_t ing, uint8_t inb, uint8_t ina) :
-		r(inr), g(ing), b(inb), a(inr) {}
-	Color(uint8_t inc) :
-		r(inc), g(inc), b(inc), a(255) {}
+	DirectX::XMFLOAT2 pos;
+	float time;
 };
 
-enum class ColTexType
-{
-	White,
-	Black,
-	Grad,
-	Max
-};
+//struct Color
+//{
+//	uint8_t r, g, b, a;
+//	Color() :r(0), g(0), b(0), a(255) {};
+//	Color(uint8_t inr, uint8_t ing, uint8_t inb, uint8_t ina) :
+//		r(inr), g(ing), b(inb), a(inr) {}
+//	Color(uint8_t inc) :
+//		r(inc), g(inc), b(inc), a(255) {}
+//};
+
 
 class PMDResource;
 class PMDLoder;
 class PMDActor;
 class VMDLoder;
+class TexManager;
 struct Size;
+struct Color;
 struct PMDBone;
+enum class ColTexType;
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -66,7 +68,6 @@ public:
 	/// </summary>
 	void DrawExcute();
 
-
 	void DrawPMDModel();
 
 	void ExecuteAndWait();
@@ -76,15 +77,12 @@ public:
 	/// </summary>
 	void Terminate();
 
-
-	ID3D12Device* GetDevice();
 private:	
 	// 基本行列
 	struct BasicMatrix
 	{
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX viewproj;
-
 	};
 	// 基本マテリアル
 	struct BasicMaterial
@@ -128,21 +126,10 @@ private:
 	bool CreateRenderTargetDescriptorHeap();
 
 	/// <summary>
-	/// 頂点バッファを生成(してCPU側の頂点情報をコピー)
-	/// </summary>
-	void CreateVertexBuffer();
-
-	/// <summary>
-	/// インデックスバッファを生成
-	/// </summary>
-	void CreateIndexBuffer();
-
-	/// <summary>
 	/// ビューポートとシザー矩形初期化
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
 	bool InitViewRect();
-
 	
 	/// <summary>
 	/// 単色テクスチャ作成
@@ -164,7 +151,6 @@ private:
 	/// <param name="subResData"></param>
 	void SetUploadTexure( D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType);
 	
-
 	/// <summary>
 	/// デフォルトテクスチャ作成
 	/// </summary>
@@ -271,13 +257,6 @@ private:
 	ComPtr<ID3D12Fence1> fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
 	uint64_t fenceValue_ = 0;
 
-	// 頂点バッファ
-	ComPtr<ID3D12Resource> vertexBuffer_ = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW vbView_ = {};	// 頂点バッファビュー
-	// インデックスバッファ
-	ComPtr<ID3D12Resource> indexBuffer_ = nullptr;
-	D3D12_INDEX_BUFFER_VIEW ibView_ = {};	// インデックスバッファビュー
-
 	// シェーダ
 	ComPtr<ID3D10Blob> vertexShader_ = nullptr;
 	ComPtr<ID3D10Blob> pixelShader_ = nullptr;
@@ -289,16 +268,20 @@ private:
 
 	// リソース
 	ComPtr<ID3D12DescriptorHeap> resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
-	// テクスチャ
+
+	// デフォルトテクスチャ
 	std::vector<ComPtr<ID3D12Resource>>defTextures_;
+
+	// テクスチャリソース
+	std::shared_ptr<TexManager> texManager_;
 
 	// map中の基本マテリアル
 	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;
 
 	//// PMDモデルデータ関連
-	// 一時的にここに置く
+	
 	std::shared_ptr<PMDActor>pmdActor_;
-	std::shared_ptr<PMDResource> pmdResource_;
+	// 一時的にここに置く
 	std::shared_ptr<VMDLoder>vmdMotion_;
 	std::unordered_map<std::string, uint16_t>boneTable_;
 	DirectX::XMMATRIX* mappedBone_ = nullptr;
@@ -340,4 +323,6 @@ private:
 
 	// ノーマルマップ用
 	ComPtr<ID3D12Resource> normalMapTex_ = nullptr;
+	BoardConstBuffer* mappedBoardBuffer_;
+	ComPtr<ID3D12Resource> boardConstBuffer_;	// 定数バッファ
 };

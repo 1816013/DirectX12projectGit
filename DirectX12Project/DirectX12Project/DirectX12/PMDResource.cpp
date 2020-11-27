@@ -4,7 +4,7 @@
 #include <Windows.h>
 #include <string>
 #include <cstdint>
-#include "../DirectX12/Dx12Wrapper.h"
+
 using namespace std;
 
 namespace
@@ -50,7 +50,7 @@ void PMDResource::CreateResouses(const std::vector<GroopType>& groopTypes)
 		ComPtr<ID3D12DescriptorHeap> descHeap;
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.NumDescriptors = buffers.size();
+		desc.NumDescriptors = static_cast<UINT>(buffers.size());
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		desc.NodeMask = 0;
@@ -63,14 +63,14 @@ void PMDResource::CreateResouses(const std::vector<GroopType>& groopTypes)
 		auto heapSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		for (int i = 0; i < buffers.size(); ++i)
 		{
-			resIdx = (i + buffType.size()) % buffType.size();
+			resIdx = static_cast<int>((i + buffType.size()) % buffType.size());
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 			if (buffType[resIdx] == BuffType::CBV)
 			{
 				gAddress = buffers[i].resource->GetGPUVirtualAddress() + (buffers[i].size * (i / buffType.size()));
 				auto cbDesc = buffers[i].resource->GetDesc();
 				cbvDesc.BufferLocation = gAddress;
-				cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width) == 256 ? static_cast<UINT>(cbDesc.Width) : static_cast<UINT>(cbDesc.Width) / (buffers.size() / buffType.size());
+				cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width) == 256 ? static_cast<UINT>(cbDesc.Width) : static_cast<UINT>(cbDesc.Width / (buffers.size() / buffType.size()));
 				dev_->CreateConstantBufferView(&cbvDesc, heapAddress);
 				heapAddress.ptr += heapSize;
 			}

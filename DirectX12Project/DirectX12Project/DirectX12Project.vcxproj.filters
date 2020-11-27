@@ -39,10 +39,13 @@
     <ClCompile Include="PMDLoder\PMDLoder.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="PMDLoder\VMDMotion.cpp">
+    <ClCompile Include="DirectX12\cameraCtr.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX12\cameraCtr.cpp">
+    <ClCompile Include="PMDLoder\VMDLoder.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\TexManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -71,10 +74,13 @@
     <ClInclude Include="PMDLoder\PMDLoder.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="PMDLoder\VMDMotion.h">
+    <ClInclude Include="DirectX12\cameraCtr.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX12\cameraCtr.h">
+    <ClInclude Include="PMDLoder\VMDLoder.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12\TexManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
