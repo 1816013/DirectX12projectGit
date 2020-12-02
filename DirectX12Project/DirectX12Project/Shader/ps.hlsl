@@ -1,7 +1,7 @@
 #include "Common.hlsli"
 
 
-float4 PS(VsOutput input) : SV_TARGET
+float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
 {
 	//float2 bno = float2(input.boneNum % 2);
 	//float col = lerp(bno.x, bno.y, input.weight);
@@ -23,6 +23,11 @@ float4 PS(VsOutput input) : SV_TARGET
 	float4 texCol = tex.Sample(smp, input.uv);
 	//toonCol = float4(max(toonCol.rgb, float3(0.9, 0.9, 0.9)),toonCol.a);
 	//return float4(toonCol.rgb,toonCol.a);
+	if (instID == 0)
+	{
+		return float4(0, 0, 0, 1);
+	}
+
 	return float4(max(ambient.rgb,toonCol.rgb * diffuse.rgb) + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)

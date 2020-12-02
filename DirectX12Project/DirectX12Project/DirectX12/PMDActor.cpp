@@ -6,6 +6,8 @@
 #include "PMDResource.h"
 #include "../Common.h"
 #include "TexManager.h"
+#include "../Application.h"
+#include "../PMDLoder/VMDLoder.h"
 using namespace DirectX;
 using namespace std;
 
@@ -14,16 +16,19 @@ namespace
 	string texTable[] = { "bmp", "spa", "sph", "toon" };
 }
 
-PMDActor::PMDActor(ComPtr<ID3D12Device>&dev, const char* path) : dev_(dev)
+PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos) : dev_(dev)
 {
-	texManager_ = make_shared<TexManager>(dev_.Get());
+	pos_ = pos;
+	texManager_ = make_shared<TexManager>(*dev.Get());
 	pmdModel_ = make_shared<PMDLoder>();
 	pmdModel_->Load(path);
-	pmdResource_ = make_shared<PMDResource>(dev_.Get());
+	pmdResource_ = make_shared<PMDResource>(*dev.Get());
+	vmdMotion_ = make_shared<VMDLoder>();
+	vmdMotion_->Load("Resource/VMD/ヤゴコロダンス.vmd");
 	CreateVertexBufferView();
 	CreateIndexBufferView();
+	frame_ = 0.0f;
 }
-
 
 void PMDActor::CreatePMDModelTexture()
 {
@@ -106,11 +111,7 @@ const Textures& PMDActor::GetTextures(std::string key)
 
 void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 {
-	cmdList->SetGraphicsRootSignature(pmdResource_->GetRootSignature().Get());
-	cmdList->SetPipelineState(pmdResource_->GetPipelineState().Get());
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	cmdList->IASetVertexBuffers(0, 1, &vbView_);
-	cmdList->IASetIndexBuffer(&ibView_);
+	
 
 	// 座標変換ヒープセット
 	auto resHeap = pmdResource_->GetGroops(GroopType::TRANSFORM).descHeap_.Get();
@@ -135,7 +136,7 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 
 		cmdList->DrawIndexedInstanced(
 			indexNum,		// インデックス数
-			1,				// インスタンス数
+			2,				// インスタンス数
 			indexOffset,	// インデックスオフセット
 			0,				// 頂点オフセット
 			0);				// インスタンスオフセット
@@ -198,7 +199,139 @@ ComPtr<ID3D12Resource> PMDActor::CreateBuffer(size_t size, D3D12_HEAP_TYPE heapT
 	return ret;
 }
 
-bool PMDActor::CreateMaterialBufferView()
+bool PMDActor::CreateBoneBuffer()
+{
+	HRESULT result = S_OK;
+	auto size = Common::AligndValue(sizeof(XMFLOAT4X4) * 512, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+	boneBuffer_ = CreateBuffer(size);
+	result = boneBuffer_->Map(0, nullptr, (void**)&mappedBone_);
+	assert(SUCCEEDED(result));
+	const auto& bData = pmdModel_->GetBoneData();
+	for (int i = 0; i < bData.size(); ++i)
+	{
+		boneTable_.emplace(bData[i].name, i);
+	}
+	// 全部単位行列に初期化
+	fill_n(mappedBone_, 512, XMMatrixIdentity());
+	return true;
+}
+
+bool PMDActor::CreateBasicDescriptors()
+{
+	auto& transResBind = pmdResource_->GetGroops(GroopType::TRANSFORM);
+	transResBind.Init({ BuffType::CBV, BuffType::CBV });
+	transResBind.AddBuffers(transformBuffer_.Get());
+	transResBind.AddBuffers(boneBuffer_.Get());
+
+	return true;
+}
+
+bool PMDActor::CreateTransformBuffer()
+{
+	transformBuffer_ = CreateBuffer(Common::AligndValue(sizeof(BasicMatrix), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	auto wSize = Application::GetInstance().GetWindowSize();
+	/*XMFLOAT4X4 tempMat = {};
+	tempMat._11 = 1.0f / (static_cast<float>(wSize.width) / 2.0f);
+	tempMat._22 = 1.0f / (static_cast<float>(wSize.height) / 2.0f);
+	tempMat._33 = 1.0f;
+	tempMat._44 = 1.0f;
+	tempMat._41 = -1.0f;
+	tempMat._42 = 1.0f;*/
+
+	XMMATRIX world = XMMatrixIdentity();
+
+	// 2D表示
+	//tmpMat.r[0].m128_f32[0] = 1.0f / (static_cast<float>(wSize.width) / 2.0f);
+	//tmpMat.r[1].m128_f32[1] = -1.0f / (static_cast<float>(wSize.height) / 2.0f);
+	//tmpMat.r[3].m128_f32[0] = -1.0f;
+	//tmpMat.r[3].m128_f32[1] = 1.0f;
+	// ここまで2D表示
+
+	// 3D表示
+	// ワールド行列(モデル自身に対する変換)
+	world *= XMMatrixRotationY(XM_PI);
+	world *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
+
+	// カメラ行列(ビュー行列)
+	XMMATRIX viewproj = XMMatrixLookAtRH(
+		{ 0.0f, 10.0f, 30.0f, 1.0f },	// 視点
+		{ 0.0f, 10.0f, 0.0f, 1.0f },		// 注視店
+		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
+
+	// プロジェクション行列(パースペクティブ行列or射影行列)
+	viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
+		static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+		0.1f,	// ニア(近い)
+		1000.0f);	//　ファー(遠い)
+
+	mappedBasicMatrix_ = make_shared<BasicMatrix>();
+	// 後でいじるために開けっ放しにしておく
+	transformBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
+
+	mappedBasicMatrix_->viewproj = viewproj;
+
+	mappedBasicMatrix_->world = world;
+	XMVECTOR plane = { 0,1,0,-0.01f };		// 平面方程式
+	XMVECTOR light = { -1,1,1,0 };		// 光源行列
+	mappedBasicMatrix_->lightPos = light;
+	mappedBasicMatrix_->lightVP = viewproj;
+	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
+	return true;
+}
+
+void PMDActor::Update(float delta)
+{
+	// モデルを動かす
+	float move = 0.0f;
+	angle_ = 0.0f;
+	BYTE keyState[256];
+	auto result = GetKeyboardState(keyState);
+	if (keyState[VK_UP] & 0x80)
+	{
+		move += 20 * delta;
+	}
+	if (keyState[VK_DOWN] & 0x80)
+	{
+		move += -20 * delta;
+	}
+	if (keyState[VK_RIGHT] & 0x80)
+	{
+		angle_ += 5 * delta;
+	}
+	if (keyState[VK_LEFT] & 0x80)
+	{
+		angle_ += -5 * delta;
+	}
+	pos_.z += move;
+	mappedBasicMatrix_->world *= XMMatrixTranslation(-pos_.x, -pos_.y, -pos_.z);
+	mappedBasicMatrix_->world *= XMMatrixRotationY(angle_);
+	mappedBasicMatrix_->world *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
+	mappedBasicMatrix_->world *= XMMatrixTranslation(0, 0, move);
+
+	XMVECTOR plane = { 0.0f,1.0f,0.0f,-0.01f };		// 平面方程式
+	XMVECTOR light = { -1.0f,1.0f,1.0f,0.0f };		// 光源行列
+	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
+	frame_ += delta * 30;
+	UpdateBones(static_cast<int>(fmodf(frame_, vmdMotion_->GetVMDData().duration)));
+	
+}
+
+BasicMatrix& PMDActor::GetBasicMarix()
+{
+	return *mappedBasicMatrix_;
+}
+
+D3D12_VERTEX_BUFFER_VIEW& PMDActor::GetVbView()
+{
+	return vbView_;
+}
+
+D3D12_INDEX_BUFFER_VIEW& PMDActor::GetIbView()
+{
+	return ibView_;
+}
+
+bool PMDActor::CreateMaterialBufferView(std::vector<ComPtr<ID3D12Resource>>&defTexs)
 {
 	// マテリアルバッファの作成
 	HRESULT result = S_OK;
@@ -213,14 +346,10 @@ bool PMDActor::CreateMaterialBufferView()
 	auto& transResBind = pmdResource_->GetGroops(GroopType::MATERIAL);
 	transResBind.Init({ BuffType::CBV, BuffType::SRV, BuffType::SRV, BuffType::SRV, BuffType::SRV });
 	array<pair<string, ID3D12Resource*>, 4>texPairList;
-	/*texPairList = { make_pair("bmp",defTextures_[static_cast<int>(ColTexType::White)].Get()),
-					make_pair("sph",defTextures_[static_cast<int>(ColTexType::White)].Get()),
-					make_pair("spa",defTextures_[static_cast<int>(ColTexType::Black)].Get()),
-					make_pair("toon",defTextures_[static_cast<int>(ColTexType::Grad)].Get()) };*/
-	texPairList = { make_pair("bmp",nullptr),
-					make_pair("sph",nullptr),
-					make_pair("spa",nullptr),
-					make_pair("toon",nullptr) };
+	texPairList = { make_pair("bmp",defTexs[static_cast<int>(ColTexType::White)].Get()),
+					make_pair("sph",defTexs[static_cast<int>(ColTexType::White)].Get()),
+					make_pair("spa",defTexs[static_cast<int>(ColTexType::Black)].Get()),
+					make_pair("toon",defTexs[static_cast<int>(ColTexType::Grad)].Get()) };
 	for (int i = 0; i < mats.size(); ++i)
 	{
 		// マテリアル定数バッファビュー
@@ -244,4 +373,119 @@ bool PMDActor::CreateMaterialBufferView()
 	}
 	materialBuffer_->Unmap(0, nullptr);
 	return true;
+}
+
+void PMDActor::UpdateBones(int currentFrameNo)
+{
+	const auto& bData = pmdModel_->GetBoneData();
+	auto mats = pmdModel_->GetBoneMat();
+	mats.resize(bData.size());
+	fill(mats.begin(), mats.end(), XMMatrixIdentity());
+
+	//auto a = vmdMotion_->GetVMDData().data;
+	for (auto& motion : vmdMotion_->GetVMDData().data)
+	{
+		// ボーンがあるかどうか
+		if (boneTable_.find(motion.first) == boneTable_.end())
+		{
+			continue;
+		}
+		auto bidx = boneTable_[motion.first];
+		auto& bpos = bData[bidx].pos;
+		// 今のフレーム時間よりも低いものを捜索
+		auto rit = find_if(motion.second.rbegin(), motion.second.rend(),
+			[currentFrameNo](const auto& v)
+			{
+				return v.frameNo <= currentFrameNo;
+			});
+
+		auto q = XMLoadFloat4(&motion.second[0].quaternion);
+		XMFLOAT3 mov(0, 0, 0);
+		if (rit != motion.second.rend())
+		{
+			mov = rit->pos;
+			q = XMLoadFloat4(&rit->quaternion);
+			auto it = rit.base();
+			if (it != motion.second.end())
+			{
+				// 線形補間
+				auto t = static_cast<float>((currentFrameNo - rit->frameNo)) /
+					static_cast<float>((it->frameNo - rit->frameNo));
+				// ベジェ補間
+				t = CalucurateFromBezier(t, it->bz);
+
+				// 補間を適用
+				//q = (1.0f - t) * q + t * XMLoadFloat4(&it->quaternion);
+				q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
+				auto vPos = XMVectorLerp(XMLoadFloat3(&mov), XMLoadFloat3(&it->pos), t);
+				XMStoreFloat3(&mov, vPos);
+
+			}
+		}
+
+		mats[bidx] = XMMatrixIdentity();
+		mats[bidx] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
+		// 回転
+		mats[bidx] *= XMMatrixRotationQuaternion(q);
+
+		mats[bidx] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
+		// 移動
+		mats[bidx] *= XMMatrixTranslation(mov.x, mov.y, mov.z);
+	}
+	RecursiveCalucurate(bData, mats, boneTable_["センター"]);
+	copy(mats.begin(), mats.end(), mappedBone_);
+}
+
+float PMDActor::CalucurateFromBezier(float x, const DirectX::XMFLOAT2 bz[2], size_t n)
+{
+	// ベジェが直線だったらxを返す
+	if (bz[0].x == bz[1].x && bz[0].y == bz[1].y)
+	{
+		return x;
+	}
+	// P0(0.0)*(1-t)^3 + 3*P1*(1-t)^2*t + 3* P2*(1-t)*t^2 + P3(1,1)*(1-t)^3
+	// ---t = f(x);
+	// 3*P1.x*(1-t)^2*t + 3 * P2.x*(1-t)*t^2 + (1-t)^3
+	// 3*P1.x*(t - 2t^2 + t^3) + 3*P2.x*(t^2 - t^3) + t^3
+	// 次数で分ける
+	// t^3 = 3*P1.x + 3*P2.x +1
+	// t^2 = -6*P1.x + 3*P2.x;
+	// t = 3*P1.x
+
+	// MMDのベジェの特性上t=xが近いから初期値t=x
+	float t = x;
+	float k3 = 3 * bz[0].x - 3 * bz[1].x + 1;	// t^3
+	float k2 = -6 * bz[0].x + 3 * bz[1].x;		// t^2
+	float k1 = 3 * bz[0].x;						// t
+
+	// 誤差の定数
+	const float epsilon = 0.0005f;
+	for (size_t i = 0; i < n; ++i)
+	{
+		auto tmpt = k3 * t * t * t + k2 * t * t + k1 * t - x;
+		if (abs(tmpt) < epsilon)
+		{
+			break;
+		}
+		t -= tmpt / 2;
+	}
+	// ここでtの近似値が求まったのでyを求めて返す
+	//float y = 0.0f;
+	float yk3 = 3 * bz[0].y - 3 * bz[1].y + 1;	// t^3
+	float yk2 = -6 * bz[0].y + 3 * bz[1].y;		// t^2
+	float yk1 = 3 * bz[0].y;					// t
+	float y = yk3 * t * t * t + yk2 * t * t + yk1 * t;
+	assert(y >= 0.0f && y <= 1.0f);
+	return y;
+}
+
+void PMDActor::RecursiveCalucurate(const std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, int idx)
+{
+	auto& mat = mats[idx];
+	auto& bone = bones[idx];
+	for (auto child : bone.children)
+	{
+		mats[child] *= mat;
+		RecursiveCalucurate(bones, mats, child);
+	}
 }

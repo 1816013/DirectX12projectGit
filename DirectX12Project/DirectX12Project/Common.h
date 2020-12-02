@@ -1,5 +1,7 @@
 #pragma once
-
+#include <string>
+#include <Windows.h>
+#include <d3d12.h>
 struct Size
 {
 	size_t width;
@@ -19,5 +21,21 @@ public:
 	{
 		//return (value + (align - 1)) &~ (align-1);
 		return value + (align - (value % align)) % align;
+	}
+
+	/// <summary>
+	/// エラー情報を出力に表示
+	/// </summary>
+	/// <param name="errBlob">エラー情報</param>
+	static void OutputFromErrorBlob(ID3DBlob* errBlob)
+	{
+		if (errBlob != nullptr)
+		{
+			std::string errStr = "";
+			auto errSize = errBlob->GetBufferSize();
+			errStr.resize(errSize);
+			std::copy_n((char*)errBlob->GetBufferPointer(), errSize, errStr.begin());
+			OutputDebugStringA(errStr.c_str());
+		}
 	}
 };

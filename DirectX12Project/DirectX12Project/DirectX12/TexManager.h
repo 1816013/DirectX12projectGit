@@ -29,7 +29,7 @@ enum class ColTexType
 class TexManager
 {
 public:
-	TexManager(ID3D12Device* dev);
+	TexManager(ID3D12Device& dev);
 
 	/// <summary>
 	/// テクスチャ作成してバッファに書き込む
@@ -39,7 +39,7 @@ public:
 	/// <returns></returns>
 	bool CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res);
 
-	/// <summary>
+	/*/// <summary>
 	/// 単色テクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
@@ -63,7 +63,7 @@ public:
 	/// デフォルトテクスチャ作成
 	/// </summary>
 	/// <returns></returns>
-	bool CreateDefaultTextures();
+	bool CreateDefaultTextures();*/
 private:
 	ComPtr<ID3D12Device> dev_;
 	// 重複したデータが入らないようにするためのデータ

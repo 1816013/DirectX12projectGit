@@ -6,9 +6,9 @@ using namespace DirectX;
 using namespace std;
 
 
-TexManager::TexManager(ID3D12Device* dev)
+TexManager::TexManager(ID3D12Device& dev)
 {
-	dev_ = dev;
+	dev_ = &dev;
 }
 
 bool TexManager::CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res)

@@ -36,7 +36,7 @@ struct PMDResourceBinding
 	};
 	std::vector<Resource> resources_;
 	ComPtr<ID3D12DescriptorHeap>descHeap_;
-	int strideBytes_;
+	int strideBytes_ = 0;
 
 	/// <summary>
 	/// 格納するバッファのタイプをセットする
@@ -55,31 +55,17 @@ using PMDResources = std::array<PMDResourceBinding, static_cast<int>(GroopType::
 class PMDResource
 {
 public:
-	PMDResource(ID3D12Device* dev);
+	PMDResource(ID3D12Device& dev);
 
 	/// <summary>
 	/// バインドしたリソースから色々作成
 	/// </summary>
 	/// <param name="groopTypes">バッファのグループ</param>
-	void Build(const std::vector<GroopType> groopTypes);
+	void Build(const std::vector<GroopType>& groopTypes);
 
 	PMDResourceBinding& GetGroops(GroopType groopType);
 	void SetPMDState(ID3D12GraphicsCommandList& cmdList);
-	ComPtr<ID3D12RootSignature> GetRootSignature();
-	ComPtr<ID3D12PipelineState> GetPipelineState();
 private:
-	/// <summary>
-	/// ルートシグネチャ生成
-	/// </summary>
-	/// <param name="plsDesc">パイプラインステートデスク</param>
-	void CreateRootSignature();
-
-	/// <summary>
-	/// パイプラインステートオブジェクト作成
-	/// </summary>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreatePipelineState();
-
 	/// <summary>
 	/// バインドしたバッファからリソースビューを作成
 	/// </summary>

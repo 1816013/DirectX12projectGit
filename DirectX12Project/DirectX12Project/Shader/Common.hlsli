@@ -1,8 +1,11 @@
 // 座標変換
-cbuffer Matrix:register(b0)
+cbuffer Transform:register(b0)
 {
 	matrix world;	// ワールド行列
 	matrix viewproj;	// カメラ行列
+	matrix shadowMat;	// 影
+    matrix lightVP;
+	float4 lightPos;	// ライト座標
 }
 
 // ボーン
@@ -38,4 +41,5 @@ struct VsOutput
 	float2 uv : TEXCOORD;		// uv座標
 	min16uint2 boneNum : BONE_NO;	// デバッグ用ボーン番号
 	float weight : WEIGHT;		// デバッグ用ウェイト
+	uint instID : SV_InstanceID;
 };

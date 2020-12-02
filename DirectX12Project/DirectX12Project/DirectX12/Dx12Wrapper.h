@@ -16,22 +16,10 @@ struct BoardConstBuffer
 	float time;
 };
 
-//struct Color
-//{
-//	uint8_t r, g, b, a;
-//	Color() :r(0), g(0), b(0), a(255) {};
-//	Color(uint8_t inr, uint8_t ing, uint8_t inb, uint8_t ina) :
-//		r(inr), g(ing), b(inb), a(inr) {}
-//	Color(uint8_t inc) :
-//		r(inc), g(inc), b(inc), a(255) {}
-//};
-
-
-class PMDResource;
-class PMDLoder;
 class PMDActor;
-class VMDLoder;
+class Renderer;
 class TexManager;
+struct BasicMatrix;
 struct Size;
 struct Color;
 struct PMDBone;
@@ -61,15 +49,15 @@ public:
 	/// </summary>
 	void ClearDrawScreen();
 
-
 	/// <summary>
-	/// コマンドリストを閉じてバックバッファに対して
-	/// 画処理を行い終了まで待つ
+	/// バリアを張りコマンドリストを閉じてバックバッファに対して
+	/// 処理を行いpresentする
 	/// </summary>
 	void DrawExcute();
 
-	void DrawPMDModel();
-
+	/// <summary>
+	/// 処理を行って終了まで待つ
+	/// </summary>
 	void ExecuteAndWait();
 
 	/// <summary>
@@ -78,22 +66,6 @@ public:
 	void Terminate();
 
 private:	
-	// 基本行列
-	struct BasicMatrix
-	{
-		DirectX::XMMATRIX world;
-		DirectX::XMMATRIX viewproj;
-	};
-	// 基本マテリアル
-	struct BasicMaterial
-	{
-		DirectX::XMFLOAT3 diffuse;
-		float alpha;
-		DirectX::XMFLOAT3 speqular;
-		float speqularity;
-		DirectX::XMFLOAT3 ambient;
-	};
-
 	/// <summary>
 	/// DirectXの機能レベルを確認する
 	/// </summary>
@@ -156,43 +128,12 @@ private:
 	/// </summary>
 	/// <returns></returns>
 	bool CreateDefaultTextures();
-	
-
-	/// <summary>
-	/// リソースの基本的なディスクリプタ作成
-	/// </summary>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreateBasicDescriptors();
-
-	/// <summary>
-	/// 座標変換バッファの作成
-	/// </summary>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreateTransformBuffer();
 
 	/// <summary>
 	/// 深度バッファビュー作成
 	/// </summary>
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool CreateDepthBufferView();
-
-	/// <summary>
-	/// マテリアルバッファビュー作成
-	/// </summary>
-	/// <returns>true : 成功 false : 失敗</returns>
-	bool CreateMaterialBufferView();
-
-
-	/// <summary>
-	/// ボーンバッファ作成
-	/// </summary>
-	/// <returns>true : 成功 false : 失敗</returns>
-	bool CreateBoneBuffer();
-
-	/// <summary>
-	/// ボーンを更新
-	/// </summary>
-	void UpdateBones(int currentFrameNo);
 
 	/// <summary>
 	/// エラー情報を出力に表示
@@ -207,26 +148,6 @@ private:
 	/// <param name="heapType"></param>
 	/// <returns></returns>
 	ComPtr<ID3D12Resource> CreateBuffer(size_t size, D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_UPLOAD);
-
-	
-	
-	/// <summary>
-	/// ボーンの返還を末端まで影響させる再帰関数
-	/// </summary>
-	/// <param name="bones">ボーン情報</param>
-	/// <param name="mats"></param>
-	/// <param name="idx"></param>
-	void RecursiveCalucurate(const std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, int idx);
-
-	/// <summary>
-	/// ベジェ補間を使ってxからyを得る
-	/// 媒介変数tをxから求めて
-	/// yを求める
-	/// ベジェデータが二つなのは始点終点両方とも0だから
-	/// </summary>
-	/// <param name="x">入力値X</param>
-	/// <returns>出力値Y</returns>
-	float CalucurateFromBezier(float x, const DirectX::XMFLOAT2 bz[2], size_t n = 8);
 
 	/// <summary>
 	/// ポストエフェクトの1パスめをレンダリングする
@@ -244,6 +165,17 @@ private:
 	/// </summary>
 	void CreateBoardPipeline();
 
+	/// <summary>
+	/// シャドウマップ用バッファ作成
+	/// </summary>
+	void CreateShadowMapBufferAndView();
+
+	/// <summary>
+	/// 影用パイプライン生成
+	/// </summary>
+	void CreateShadowPipeline();
+	void DrawShadow(BasicMatrix& mat);
+
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
 	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;
@@ -257,52 +189,26 @@ private:
 	ComPtr<ID3D12Fence1> fence_ = nullptr;// フェンスオブジェクト(CPUGPU同期に必要)
 	uint64_t fenceValue_ = 0;
 
-	// シェーダ
-	ComPtr<ID3D10Blob> vertexShader_ = nullptr;
-	ComPtr<ID3D10Blob> pixelShader_ = nullptr;
-
 	// ビューポート
 	D3D12_VIEWPORT viewPort_ = {};
 	// シザー矩形
 	D3D12_RECT scissorRect_ = {};
-
-	// リソース
-	ComPtr<ID3D12DescriptorHeap> resViewHeap_ = nullptr;	// リソースビュー用ディスクリプタヒープ
 
 	// デフォルトテクスチャ
 	std::vector<ComPtr<ID3D12Resource>>defTextures_;
 
 	// テクスチャリソース
 	std::shared_ptr<TexManager> texManager_;
-
-	// map中の基本マテリアル
-	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;
-
-	//// PMDモデルデータ関連
-	
-	std::shared_ptr<PMDActor>pmdActor_;
-	// 一時的にここに置く
-	std::shared_ptr<VMDLoder>vmdMotion_;
-	std::unordered_map<std::string, uint16_t>boneTable_;
-	DirectX::XMMATRIX* mappedBone_ = nullptr;
-
-	// 定数バッファ
-	ComPtr<ID3D12Resource> transformBuffer_;	// 定数バッファ
+	//// PMDモデルデータ関連	
+	std::shared_ptr<Renderer>renderer_;
+	std::vector<std::shared_ptr<PMDActor>>pmdActor_;
 
 	// 深度バッファ
 	ComPtr<ID3D12Resource> depthBuffer_;
 	ComPtr<ID3D12DescriptorHeap> depthDescHeap_;
 
-	// マテリアルバッファ
-	ComPtr<ID3D12Resource> materialBuffer_;			// マテリアル用バッファ
-	ComPtr<ID3D12DescriptorHeap> materialDescHeap_;	// マテリアル用ディスクリプタヒープ
-
 	// バックバッファインデックス
 	uint32_t bbIdx_;
-
-	// ボーンバッファ
-	ComPtr<ID3D12Resource> boneBuffer_;			// ボーン用バッファ
-	ComPtr<ID3D12DescriptorHeap> boneDescHeap_;			// ボーン用ディスクリプタヒープ
 
 	// マルチパスレンダリング
 	// ポストエフェクトレンダーターゲット用テクスチャ
@@ -317,12 +223,18 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW boardVBView_;
 	ComPtr<ID3D12PipelineState> boardPipeLine_ = nullptr;
 	ComPtr<ID3D12RootSignature> boardSig_ = nullptr;
-
 	// 時間用
-	ULONGLONG oldTime = 0;
+	float oldTime = 0;
 
 	// ノーマルマップ用
 	ComPtr<ID3D12Resource> normalMapTex_ = nullptr;
 	BoardConstBuffer* mappedBoardBuffer_;
 	ComPtr<ID3D12Resource> boardConstBuffer_;	// 定数バッファ
+
+	// シャドウマップ用
+	ComPtr<ID3D12Resource> shadowDepthBuffer_;
+	ComPtr<ID3D12DescriptorHeap> shadowDSVHeap_;
+	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
+	ComPtr<ID3D12PipelineState> shadowPipeline_ = nullptr;
+	ComPtr<ID3D12RootSignature> shadowSig_ = nullptr;
 };

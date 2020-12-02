@@ -48,6 +48,9 @@
     <ClCompile Include="DirectX12\TexManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX12\Renderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -83,12 +86,17 @@
     <ClInclude Include="DirectX12\TexManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX12\Renderer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\vs.hlsl" />
     <FxCompile Include="Shader\ps.hlsl" />
     <FxCompile Include="Shader\boardVS.hlsl" />
     <FxCompile Include="Shader\boardPS.hlsl" />
+    <FxCompile Include="Shader\ShadowPS.hlsl" />
+    <FxCompile Include="Shader\ShadowVS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Common.hlsli" />

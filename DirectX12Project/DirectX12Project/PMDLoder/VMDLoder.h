@@ -19,14 +19,11 @@ struct VMDData
 		bz[1] = { x2 / 127.0f, y2 / 127.0f };
 	}
 };
-
-
-using VMDDataMap = std::unordered_map<std::string,std::vector<VMDData>>;
-
+using VMDDataMap = std::unordered_map<std::string, std::vector<VMDData>>;
 struct VMDMotion
 {
 	VMDDataMap data;
-	uint32_t duration;
+	float duration = 0.0f;
 };
 
 class VMDLoder
