@@ -16,7 +16,7 @@ float4 PS(BoardOutput input) : SV_TARGET
 	if(input.uv.x < 0.5f && input.uv.y <0.5f)
     {
         float b = shadowTex.Sample(smp, input.uv * 2.0);
-        b = pow(b, 100);
+      //  b = pow(b, 10);
         return float4(b, b, b, 1);
 
     }
