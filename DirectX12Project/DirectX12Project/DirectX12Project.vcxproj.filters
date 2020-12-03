@@ -51,6 +51,15 @@
     <ClCompile Include="DirectX12\Renderer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX12\mesh\PrimitiveMesh.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\mesh\PlaneMesh.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\mesh\PrimitiveManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -89,6 +98,15 @@
     <ClInclude Include="DirectX12\Renderer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX12\mesh\PrimitiveMesh.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12\mesh\PlaneMesh.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12\mesh\PrimitiveManager.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\vs.hlsl" />
@@ -97,6 +115,8 @@
     <FxCompile Include="Shader\boardPS.hlsl" />
     <FxCompile Include="Shader\ShadowPS.hlsl" />
     <FxCompile Include="Shader\ShadowVS.hlsl" />
+    <FxCompile Include="Shader\PrimitiveVS.hlsl" />
+    <FxCompile Include="Shader\PrimitivePS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Common.hlsli" />

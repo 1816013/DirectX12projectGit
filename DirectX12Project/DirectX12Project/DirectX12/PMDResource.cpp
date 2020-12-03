@@ -63,6 +63,10 @@ void PMDResource::CreateResouses(const std::vector<GroopType>& groopTypes)
 				{
 					srvDesc.Format = buffers[i].resource->GetDesc().Format;
 				}
+				if (srvDesc.Format == DXGI_FORMAT_R32_TYPELESS)
+				{
+					srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+				}
 				dev_->CreateShaderResourceView(
 					buffers[i].resource,
 					&srvDesc,

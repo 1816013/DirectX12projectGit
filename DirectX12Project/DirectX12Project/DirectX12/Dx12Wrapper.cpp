@@ -9,6 +9,7 @@
 #include "../PMDLoder/PMDLoder.h"
 #include "TexManager.h"
 #include "Renderer.h"
+#include "mesh/PrimitiveManager.h"
 //#include "../BMPLoder/BmpLoder.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -526,6 +527,10 @@ void Dx12Wrapper::CreateShadowMapBufferAndView()
 	dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(),
 		&srvDesc,
 		shadowSRVHeap_->GetCPUDescriptorHandleForHeapStart());
+	auto& shadowResBind = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::DEPTH);
+	shadowResBind.Init({ BuffType::SRV });
+	shadowResBind.AddBuffers(shadowDepthBuffer_.Get());
+
 }
 
 void Dx12Wrapper::CreateShadowPipeline()
@@ -666,11 +671,17 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 	auto dsvHandle = shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart();
 	cmdList_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
-	XMVECTOR camPos = { -10,10,10 };
+	XMVECTOR camPos = { -20,20,20 };
 	XMVECTOR direction = { 1,-1,-1 };
 	mat.lightVP = XMMatrixLookToRH(camPos, direction, { 0,1,0,0 });
-	mat.lightVP *= XMMatrixOrthographicRH(40.0f, 40.0f, 1.0f, 500.0f);
+	mat.lightVP *= XMMatrixOrthographicRH(50.0f, 50.0f, 1.0f, 500.0f);
 
+	// ビューポートとシザー矩形の設定
+	auto depthDesk = shadowDepthBuffer_->GetDesc();
+	CD3DX12_VIEWPORT vp(shadowDepthBuffer_.Get());
+	cmdList_->RSSetViewports(1, &vp);
+	auto scissorRect = CD3DX12_RECT(0, 0, depthDesk.Width, depthDesk.Height);
+	cmdList_->RSSetScissorRects(1, &scissorRect);
 	// 描画命令
 	auto descHeap = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::TRANSFORM).descHeap_.Get();
 	cmdList_->SetDescriptorHeaps(1, &descHeap);
@@ -761,8 +772,12 @@ bool Dx12Wrapper::Init(HWND hwnd)
 		actor->CreateBasicDescriptors();
 
 		// リソースデータをビルド
-		actor->GetPMDResource().Build({ GroopType::TRANSFORM, GroopType::MATERIAL });
+		actor->GetPMDResource().Build({ GroopType::TRANSFORM, GroopType::MATERIAL, GroopType::DEPTH });
 	}
+
+	// 床のデスクリプタヒープ
+	CreatePrimitiveBufferView();
+
 	// ビューポートとシザー矩形初期化
 	InitViewRect();
 	// 板ポリパイプライン作成
@@ -770,8 +785,36 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	// 影のパイプライン作成
 	CreateShadowPipeline();
 
+	primManager_ = make_shared<PrimitiveManager>(dev_);
+	auto prim = primManager_->CreatePlane(XMFLOAT3(0, 0, 0), 50, 50);
 
 	return true;
+}
+
+void Dx12Wrapper::CreatePrimitiveBufferView()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
+	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	descHeapDesc.NumDescriptors = 2;
+	descHeapDesc.NodeMask = 0;
+	descHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	auto result = dev_->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(primitiveDescHeap_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+	auto handle = primitiveDescHeap_->GetCPUDescriptorHandleForHeapStart();
+	// 座標変換及びライトから撮影した深度のテクスチャのためのビュー
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	auto transDesc = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::TRANSFORM).resources_[0];
+	cbvDesc.BufferLocation = transDesc.resource->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = transDesc.resource->GetDesc().Width;
+	dev_->CreateConstantBufferView(&cbvDesc, handle);
+	handle.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, handle);
 }
 
 bool Dx12Wrapper::InitViewRect()
@@ -799,7 +842,6 @@ bool Dx12Wrapper::Update()
 {
 	static auto lastTime = GetTickCount64();
 	static float deltaTime = 0.0f;
-
 	
 	// pmdモデルアップデート
 	for (auto actor : pmdActor_)
@@ -812,19 +854,22 @@ bool Dx12Wrapper::Update()
 		// 復元用
 		DrawShadow(actor->GetBasicMarix());
 		// モデル描画
+		CD3DX12_VIEWPORT vp(bbResouces[bbIdx_].Get());	// これでできるが分割できない
+		cmdList_->RSSetViewports(1, &vp);
+		cmdList_->RSSetScissorRects(1, &scissorRect_);
 		cmdList_->SetGraphicsRootSignature(renderer_->GetRootSignature().Get());
 		cmdList_->SetPipelineState(renderer_->GetPipelineState().Get());
 		cmdList_->OMSetRenderTargets(1, &firstRtvHeap_->GetCPUDescriptorHandleForHeapStart()
 			, false, &depthDescHeap_->GetCPUDescriptorHandleForHeapStart());
 		actor->DrawModel(cmdList_);
 	}
-
+	primManager_->Draw(cmdList_.Get(), primitiveDescHeap_.Get());
 	
 	// 板ポリ更新
 	mappedBoardBuffer_->time += deltaTime;
 	mappedBoardBuffer_->time = fmodf(mappedBoardBuffer_->time, 2);
 
-	// -板ポリに書き込む
+	
 	// リソースバリアを設定レンダーターゲットからシェーダ
 	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		rtTexture_.Get(),	// リソース
@@ -832,9 +877,15 @@ bool Dx12Wrapper::Update()
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
 	);
 	cmdList_->ResourceBarrier(1, &barrier);
+	// リソースバリアを設定レンダーターゲットからシェーダ
+	auto depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		depthBuffer_.Get(),	// リソース
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 前ターゲット
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
+	);
 
-	// 板ポリからバックバッファのレンダーターゲットにセット
-	// 板ポリの内容をバックバッファに書き込む
+	// -板ポリにバックバッファを書き込む 2pass
+
 	const auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto bbRtvHeap = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	bbRtvHeap.ptr += static_cast<SIZE_T>(bbIdx_)* rtvIncSize;
@@ -894,7 +945,7 @@ void Dx12Wrapper::ClearDrawScreen()
 	);
 	cmdList_->ResourceBarrier(1, &barrier);
 
-	// 板ポリのレンダーターゲットをセット	
+	// バックバッファにセット	
 	D3D12_CPU_DESCRIPTOR_HANDLE  rtvHeaps[] = { firstRtvHeap_->GetCPUDescriptorHandleForHeapStart() };
 	D3D12_CPU_DESCRIPTOR_HANDLE  dsvHeaps[] = { depthDescHeap_->GetCPUDescriptorHandleForHeapStart() };
 	cmdList_->OMSetRenderTargets(1, rtvHeaps, false, dsvHeaps);
@@ -905,11 +956,10 @@ void Dx12Wrapper::ClearDrawScreen()
 		depthDescHeap_->GetCPUDescriptorHandleForHeapStart(),
 		D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 
-
 	// ビューポートとシザー矩形の設定
-	CD3DX12_VIEWPORT vp(bbResouces[bbIdx_].Get());	// これでできるが分割できない
-	cmdList_->RSSetViewports(1, &vp);
-	cmdList_->RSSetScissorRects(1, &scissorRect_);
+	//CD3DX12_VIEWPORT vp(bbResouces[bbIdx_].Get());	// これでできるが分割できない
+	//cmdList_->RSSetViewports(1, &vp);
+	//cmdList_->RSSetScissorRects(1, &scissorRect_);
 }
 
 void Dx12Wrapper::ExecuteAndWait()

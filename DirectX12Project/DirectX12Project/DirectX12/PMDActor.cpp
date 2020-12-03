@@ -111,14 +111,19 @@ const Textures& PMDActor::GetTextures(std::string key)
 
 void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 {
-	
-
 	// 座標変換ヒープセット
 	auto resHeap = pmdResource_->GetGroops(GroopType::TRANSFORM).descHeap_.Get();
 	ID3D12DescriptorHeap* deskHeaps[] = { resHeap/*resViewHeap_.Get()*/ };
 	auto heapPos = /*resViewHeap_*/resHeap->GetGPUDescriptorHandleForHeapStart();
 	cmdList->SetDescriptorHeaps(1, deskHeaps);
 	cmdList->SetGraphicsRootDescriptorTable(0, heapPos);
+
+	// 座標変換ヒープセット
+	auto shadowResHeap = pmdResource_->GetGroops(GroopType::DEPTH).descHeap_.Get();
+	ID3D12DescriptorHeap* shadowDeskHeaps[] = { shadowResHeap/*resViewHeap_.Get()*/ };
+	auto shadowHeapPos = /*resViewHeap_*/shadowResHeap->GetGPUDescriptorHandleForHeapStart();
+	cmdList->SetDescriptorHeaps(1, shadowDeskHeaps);
+	cmdList->SetGraphicsRootDescriptorTable(2, shadowHeapPos);
 
 	// マテリアル&テクスチャヒープセット
 	auto material = GetPMDModel().GetMaterialData();
@@ -136,13 +141,15 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 
 		cmdList->DrawIndexedInstanced(
 			indexNum,		// インデックス数
-			2,				// インスタンス数
+			1,				// インスタンス数
 			indexOffset,	// インデックスオフセット
 			0,				// 頂点オフセット
 			0);				// インスタンスオフセット
 		indexOffset += indexNum;
 		materialHeapPos.ptr += static_cast<UINT64>(heapSize) * descNum;
 	}
+
+	
 }
 
 void PMDActor::CreateVertexBufferView()

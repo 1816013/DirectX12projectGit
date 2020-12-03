@@ -19,6 +19,7 @@ struct BoardConstBuffer
 class PMDActor;
 class Renderer;
 class TexManager;
+class PrimitiveManager;
 struct BasicMatrix;
 struct Size;
 struct Color;
@@ -37,6 +38,8 @@ public:
 	/// </summary>
 	/// <returns>true : 成功 false : 失敗</returns>
 	bool Init(HWND hwnd);
+
+	void CreatePrimitiveBufferView();
 
 	/// <summary>
 	/// DirectX12の更新を行う
@@ -166,7 +169,7 @@ private:
 	void CreateBoardPipeline();
 
 	/// <summary>
-	/// シャドウマップ用バッファ作成
+	/// 影用バッファ作成
 	/// </summary>
 	void CreateShadowMapBufferAndView();
 
@@ -237,4 +240,9 @@ private:
 	ComPtr<ID3D12DescriptorHeap> shadowSRVHeap_;
 	ComPtr<ID3D12PipelineState> shadowPipeline_ = nullptr;
 	ComPtr<ID3D12RootSignature> shadowSig_ = nullptr;
+
+	// 床
+	std::shared_ptr<PrimitiveManager> primManager_;
+
+	ComPtr<ID3D12DescriptorHeap>primitiveDescHeap_;
 };

@@ -14,6 +14,7 @@ enum class GroopType
 {
 	TRANSFORM,	// 座標変換(CBV, CBV)
 	MATERIAL,	// マテリアル(CBV, SRV, SRV, SRV, SRV)
+	DEPTH,	// シャドウマップ
 	MAX
 };
 

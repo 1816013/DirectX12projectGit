@@ -27,8 +27,8 @@ void Renderer::CreateRootSignature(ID3D12Device& dev)
 	// ルートシグネチャ
 	CD3DX12_ROOT_SIGNATURE_DESC rsDesc = {};
 
-	D3D12_ROOT_PARAMETER rp[2] = {};
-	D3D12_DESCRIPTOR_RANGE range[4] = {};
+	D3D12_ROOT_PARAMETER rp[3] = {};
+	D3D12_DESCRIPTOR_RANGE range[5] = {};
 
 	// レンジ
 	// 行列定数バッファ
@@ -54,7 +54,11 @@ void Renderer::CreateRootSignature(ID3D12Device& dev)
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
 		4,// デスクリプタ数	t0～t3まで
 		0);// ベースレジスタ番号 t0
-
+	// シャドウマップ
+	range[4] = CD3DX12_DESCRIPTOR_RANGE(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
+		1,// デスクリプタ数	t4～t4まで
+		4);// ベースレジスタ番号 t4
 	// ルートパラメータ
 	// 座標変換
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
@@ -67,17 +71,25 @@ void Renderer::CreateRootSignature(ID3D12Device& dev)
 		2,	// レンジ数
 		&range[2],	// レンジ先頭アドレス
 		D3D12_SHADER_VISIBILITY_PIXEL);	// どのシェーダで使うか
+	// シャドウマップ
+	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
+		rp[2],	// ルートパラメータ
+		1,	// レンジ数
+		&range[4],	// レンジ先頭アドレス
+		D3D12_SHADER_VISIBILITY_PIXEL);	// どのシェーダで使うか
 
 	// sを定義
 	// サンプラの定義、サンプラはuvが0未満や1越えとかの時や
 	// UVをもとに色をとってくるときのルールを指定するもの
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
 	samplerDesc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
 	samplerDesc[1] = CD3DX12_STATIC_SAMPLER_DESC(1);
 	samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-
+	samplerDesc[2] = CD3DX12_STATIC_SAMPLER_DESC(2);
+	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 	rsDesc.Init(_countof(rp), rp, _countof(samplerDesc), samplerDesc,
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
