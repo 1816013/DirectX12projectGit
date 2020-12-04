@@ -226,7 +226,7 @@ bool PMDActor::CreateBoneBuffer()
 bool PMDActor::CreateBasicDescriptors()
 {
 	auto& transResBind = pmdResource_->GetGroops(GroopType::TRANSFORM);
-	transResBind.Init({ BuffType::CBV, BuffType::CBV });
+	//transResBind.Init({ BuffType::CBV, BuffType::CBV });
 	transResBind.AddBuffers(transformBuffer_.Get());
 	transResBind.AddBuffers(boneBuffer_.Get());
 
@@ -351,7 +351,7 @@ bool PMDActor::CreateMaterialBufferView(std::vector<ComPtr<ID3D12Resource>>&defT
 	assert(SUCCEEDED(result));
 
 	auto& transResBind = pmdResource_->GetGroops(GroopType::MATERIAL);
-	transResBind.Init({ BuffType::CBV, BuffType::SRV, BuffType::SRV, BuffType::SRV, BuffType::SRV });
+	//transResBind.Init({ BuffType::CBV, BuffType::SRV, BuffType::SRV, BuffType::SRV, BuffType::SRV });
 	array<pair<string, ID3D12Resource*>, 4>texPairList;
 	texPairList = { make_pair("bmp",defTexs[static_cast<int>(ColTexType::White)].Get()),
 					make_pair("sph",defTexs[static_cast<int>(ColTexType::White)].Get()),

@@ -6,7 +6,9 @@ using namespace std;
 
 PMDResource::PMDResource(ID3D12Device& dev) : dev_(&dev)
 {
-	
+	res_[static_cast<int>(GroopType::TRANSFORM)].types_ = { BuffType::CBV, BuffType::CBV };
+	res_[static_cast<int>(GroopType::MATERIAL)].types_ = {BuffType::CBV,BuffType::SRV,BuffType::SRV,BuffType::SRV,BuffType::SRV };
+	res_[static_cast<int>(GroopType::DEPTH)].types_ = { BuffType::SRV };
 }
 
 void PMDResource::Build(const vector<GroopType>& groopType)

@@ -12,9 +12,9 @@ using Microsoft::WRL::ComPtr;
 // 読み込むバッファのグループ
 enum class GroopType
 {
-	TRANSFORM,	// 座標変換(CBV, CBV)
-	MATERIAL,	// マテリアル(CBV, SRV, SRV, SRV, SRV)
-	DEPTH,	// シャドウマップ
+	TRANSFORM,	// 座標変換(CBV 座標変換, CBV ボーン)
+	MATERIAL,	// マテリアル(CBV 基本マテリアル, SRV bmp, SRV sph, SRV spa, SRV toon)
+	DEPTH,	// シャドウマップ(SRV 影)
 	MAX
 };
 

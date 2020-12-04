@@ -20,23 +20,27 @@ float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
 	// シェーダではノーコストである
 	float s = saturate(pow(saturate(dot(eray, lray)), speqular.a));
 	float2 spUv = input.norm.xy * float2(0.5f, -0.5f) + 0.5f;
-    float4 texCol = tex.Sample(shadowSmp, input.uv);
+    float4 texCol = tex.Sample(smp, input.uv);
 	//toonCol = float4(max(toonCol.rgb, float3(0.9, 0.9, 0.9)),toonCol.a);
 	//return float4(toonCol.rgb,toonCol.a);
 	if (instID == 1)
 	{
 		return float4(0, 0, 0, 1);
 	}
-    
+	
 
+    
     float bbias = 1.0f;
-    float epsilon = 0.005f;
+    float sCol = 0.5f;	// 影色
+    float epsilon = 0.0005f;
     float2 suv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
-    if (input.lvpos.z > shadowTex.Sample(smp, suv)+ epsilon)
-    {
-        bbias = 0.0f;
-    }
-    return float4((max(ambient.rgb, toonCol.rgb * diffuse.rgb) + speqular.rgb * s) * bbias, diffuse.a)
+    float threshold = shadowTex.SampleCmpLevelZero(shadowCmpSmp, suv, input.lvpos.z - epsilon);
+    bbias = lerp(sCol, 1.0f, threshold);
+    //if (input.lvpos.z > shadowTex.Sample(smp, suv)+ epsilon)
+    //{
+    //    bbias = 0.5f;
+    //}
+    return float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)

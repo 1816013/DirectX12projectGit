@@ -202,7 +202,7 @@ private:
 
 	// テクスチャリソース
 	std::shared_ptr<TexManager> texManager_;
-	//// PMDモデルデータ関連	
+	// PMDモデルデータ関連	
 	std::shared_ptr<Renderer>renderer_;
 	std::vector<std::shared_ptr<PMDActor>>pmdActor_;
 

@@ -21,15 +21,6 @@ using namespace std;
 
 namespace
 {
-	/// <summary>
-	/// 頂点構造体
-	/// </summary>
-	/*struct Vertex
-	{
-		XMFLOAT3 vertex;
-		XMFLOAT2 uv;
-		Vertex(XMFLOAT3 vert, XMFLOAT2 tuv) : vertex(vert), uv(tuv) {};
-	};*/
 	//vector<PMDVertex> vertices_;
 	//vector<unsigned short>indices_;
 
@@ -38,7 +29,6 @@ namespace
 		
 	// 中間バッファ一時保持用
 	vector<ComPtr<ID3D12Resource>>intermediateBuffList;
-
 }
 
 void CreateVertices()
@@ -528,7 +518,7 @@ void Dx12Wrapper::CreateShadowMapBufferAndView()
 		&srvDesc,
 		shadowSRVHeap_->GetCPUDescriptorHandleForHeapStart());
 	auto& shadowResBind = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::DEPTH);
-	shadowResBind.Init({ BuffType::SRV });
+//	shadowResBind.Init({ BuffType::SRV });
 	shadowResBind.AddBuffers(shadowDepthBuffer_.Get());
 
 }
@@ -579,7 +569,6 @@ void Dx12Wrapper::CreateShadowPipeline()
 	OutputFromErrorBlob(errBlob.Get());
 	assert(SUCCEEDED(result));
 	plsDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-
 	//// ピクセルシェーダ
 	//ComPtr<ID3DBlob> psBlob = nullptr;
 	//result = D3DCompileFromFile(L"Shader/ShadowPS.hlsl",
@@ -590,13 +579,12 @@ void Dx12Wrapper::CreateShadowPipeline()
 	//	0, psBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 	//OutputFromErrorBlob(errBlob.Get());
 	//assert(SUCCEEDED(result));
-
 	//plsDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
 	// ラスタライザ設定
 	plsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	plsDesc.RasterizerState.FrontCounterClockwise = true;
-	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	// 出力設定
 	plsDesc.NumRenderTargets = 0;
@@ -615,43 +603,43 @@ void Dx12Wrapper::CreateShadowPipeline()
 	// ブレンド
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-	// ルートシグネチャ生成
-	// ルートシグネチャ
-	D3D12_ROOT_PARAMETER rp[1] = {};
-	D3D12_DESCRIPTOR_RANGE range[1] = {};
-
-	// レンジ
-	// 行列定数バッファ
-	range[0] = CD3DX12_DESCRIPTOR_RANGE(
-		D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // レンジタイプ b
-		2,// デスクリプタ数	b0～b1まで
-		0);// ベースレジスタ番号 b0		
-
-	// ルートパラメータ
-	// 座標変換
-	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
-		rp[0],	// ルートパラメータ
-		1,		// レンジ数
-		&range[0]// レンジ先頭アドレス
-		);
-
-	//D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
-	//samplerDesc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
-	///*samplerDesc->AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	//samplerDesc->AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;*/
-
-	CD3DX12_ROOT_SIGNATURE_DESC rsDesc(1, rp/*, 1, samplerDesc*/);
-	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	//// ルートシグネチャ生成
+	//// ルートシグネチャ
+	//D3D12_ROOT_PARAMETER rp[1] = {};
+	//D3D12_DESCRIPTOR_RANGE range[1] = {};
+	//// レンジ
+	//// 行列定数バッファ
+	//range[0] = CD3DX12_DESCRIPTOR_RANGE(
+	//	D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // レンジタイプ b
+	//	2,// デスクリプタ数	b0～b1まで
+	//	0);// ベースレジスタ番号 b0		
+	//// ルートパラメータ
+	//// 座標変換
+	//CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
+	//	rp[0],	// ルートパラメータ
+	//	1,		// レンジ数
+	//	&range[0]// レンジ先頭アドレス
+	//	);
+	////D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+	////samplerDesc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
+	/////*samplerDesc->AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	////samplerDesc->AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;*/
+	//CD3DX12_ROOT_SIGNATURE_DESC rsDesc(1, rp/*, 1, samplerDesc*/);
+	//rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// シグネチャ設定
 	ComPtr<ID3DBlob> sigBlob = nullptr;
-	result = D3D12SerializeRootSignature(&rsDesc,
+	/*result = D3D12SerializeRootSignature(&rsDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&sigBlob,
 		&errBlob);
 	OutputFromErrorBlob(errBlob.Get());
-	assert(SUCCEEDED(result));
+	assert(SUCCEEDED(result));*/
 
+	result = D3DGetBlobPart(vsBlob->GetBufferPointer(),
+		vsBlob->GetBufferSize(),
+		D3D_BLOB_ROOT_SIGNATURE, 0, &sigBlob);
+	assert(SUCCEEDED(result));
 	// ルートシグネチャの生成
 	result = dev_->CreateRootSignature(0,
 		sigBlob->GetBufferPointer(),
@@ -668,9 +656,13 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 	cmdList_->SetPipelineState(shadowPipeline_.Get());
 	cmdList_->SetGraphicsRootSignature(shadowSig_.Get());
 	
+	auto descHeap = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::TRANSFORM).descHeap_.Get();
+	cmdList_->SetDescriptorHeaps(1, &descHeap);
+	cmdList_->SetGraphicsRootDescriptorTable(0, descHeap->GetGPUDescriptorHandleForHeapStart());
+
 	auto dsvHandle = shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart();
-	cmdList_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
+	cmdList_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	XMVECTOR camPos = { -20,20,20 };
 	XMVECTOR direction = { 1,-1,-1 };
 	mat.lightVP = XMMatrixLookToRH(camPos, direction, { 0,1,0,0 });
@@ -683,10 +675,13 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 	auto scissorRect = CD3DX12_RECT(0, 0, depthDesk.Width, depthDesk.Height);
 	cmdList_->RSSetScissorRects(1, &scissorRect);
 	// 描画命令
-	auto descHeap = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::TRANSFORM).descHeap_.Get();
-	cmdList_->SetDescriptorHeaps(1, &descHeap);
-	cmdList_->SetGraphicsRootDescriptorTable(0, descHeap->GetGPUDescriptorHandleForHeapStart());
 	cmdList_->DrawIndexedInstanced(pmdActor_[0]->GetPMDModel().GetIndexData().size(), 1, 0, 0,0);
+	// リソースバリアを設定デプスからピクセルシェーダ
+	auto depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		depthBuffer_.Get(),	// リソース
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 前ターゲット
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
+	);
 }
 
 Dx12Wrapper::Dx12Wrapper()
@@ -786,7 +781,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	CreateShadowPipeline();
 
 	primManager_ = make_shared<PrimitiveManager>(dev_);
-	auto prim = primManager_->CreatePlane(XMFLOAT3(0, 0, 0), 50, 50);
+	primManager_->CreatePlane(XMFLOAT3(0, 0, 0), 50, 50);
 
 	return true;
 }
@@ -877,12 +872,7 @@ bool Dx12Wrapper::Update()
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
 	);
 	cmdList_->ResourceBarrier(1, &barrier);
-	// リソースバリアを設定レンダーターゲットからシェーダ
-	auto depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		depthBuffer_.Get(),	// リソース
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 前ターゲット
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
-	);
+	
 
 	// -板ポリにバックバッファを書き込む 2pass
 

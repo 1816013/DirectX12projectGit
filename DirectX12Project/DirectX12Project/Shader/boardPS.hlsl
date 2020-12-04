@@ -13,12 +13,11 @@ cbuffer Const:register(b0)
 
 float4 PS(BoardOutput input) : SV_TARGET
 {
-	if(input.uv.x < 0.5f && input.uv.y <0.5f)
+	if(input.uv.x < 0.25f && input.uv.y <0.25f)
     {
-        float b = shadowTex.Sample(smp, input.uv * 2.0);
+        float b = shadowTex.Sample(smp, input.uv * 4.0);
        // b = pow(b, 100);
-        //return float4(b, b, b, 1);
-
+        return float4(b, b, b, 1);
     }
 	
 	float2 nUV = input.uv - 0.5f;
@@ -53,8 +52,6 @@ float4 PS(BoardOutput input) : SV_TARGET
 	}
 
 //	return ret;
-
-
 	// —ÖŠsü•\Ž¦
 	/*ret =(rtvTex.Sample(smp, input.uv)* 4 +
 		rtvTex.Sample(smp, input.uv + float2(0, dt.y)) * -1 +
@@ -93,5 +90,5 @@ float4 PS(BoardOutput input) : SV_TARGET
 	
 
 	//return float4(mono * 0.5, mono, mono * 0.5, 1);
-	return col;
+	//return col;
 }

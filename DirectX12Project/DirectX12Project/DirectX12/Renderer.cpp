@@ -88,8 +88,8 @@ void Renderer::CreateRootSignature(ID3D12Device& dev)
 	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[2] = CD3DX12_STATIC_SAMPLER_DESC(2);
-	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;// ”äŠrƒŠƒjƒA•âŠÔ
+	samplerDesc[2].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	rsDesc.Init(_countof(rp), rp, _countof(samplerDesc), samplerDesc,
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 

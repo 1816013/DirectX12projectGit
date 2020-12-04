@@ -77,6 +77,14 @@ void PrimitiveManager::CreatePipeline()
 	// ブレンド
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
+	CreateRootSignature();
+	plsDesc.pRootSignature = rootSig_.Get();
+	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(pipeline_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+}
+
+void PrimitiveManager::CreateRootSignature()
+{
 	// ルートシグネチャ生成
 	// ルートシグネチャ
 	D3D12_ROOT_PARAMETER rp[1] = {};
@@ -92,8 +100,8 @@ void PrimitiveManager::CreatePipeline()
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
 		1,// デスクリプタ数	t0～t0まで
 		0);// ベースレジスタ番号 t0	
-	// ルートパラメータ
-	// 座標変換
+		   // ルートパラメータ
+		   // 座標変換
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
 		rp[0],	// ルートパラメータ
 		2,		// レンジ数
@@ -111,9 +119,9 @@ void PrimitiveManager::CreatePipeline()
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// シグネチャ設定
-	//ComPtr<ID3DBlob> errBlob = nullptr;
+	ComPtr<ID3DBlob> errBlob = nullptr;
 	ComPtr<ID3DBlob> sigBlob = nullptr;
-	result = D3D12SerializeRootSignature(&rsDesc,
+	auto result = D3D12SerializeRootSignature(&rsDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&sigBlob,
 		&errBlob);
@@ -126,19 +134,15 @@ void PrimitiveManager::CreatePipeline()
 		sigBlob->GetBufferSize(),
 		IID_PPV_ARGS(rootSig_.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(result));
-	plsDesc.pRootSignature = rootSig_.Get();
-	result = dev_->CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(pipeline_.ReleaseAndGetAddressOf()));
-	assert(SUCCEEDED(result));
 }
 
 PrimitiveManager::~PrimitiveManager()
 {
 }
 
-std::shared_ptr<PlaneMesh> PrimitiveManager::CreatePlane(const DirectX::XMFLOAT3& pos, float width, float depth)
+void PrimitiveManager::CreatePlane(const DirectX::XMFLOAT3& pos, float width, float depth)
 {
 	primitives_.push_back(make_shared<PlaneMesh>(dev_.Get(), pos, width, depth));
-	return dynamic_pointer_cast<PlaneMesh>(primitives_.back());
 }
 
 void PrimitiveManager::Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorHeap* descHeap)

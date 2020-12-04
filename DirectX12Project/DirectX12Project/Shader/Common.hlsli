@@ -34,7 +34,7 @@ Texture2D<float> shadowTex : register(t4);
 
 SamplerState smp:register(s0);
 SamplerState toonSmp:register(s1);
-SamplerState shadowSmp:register(s2);
+SamplerComparisonState shadowCmpSmp:register(s2);
 
 // 頂点データ出力
 struct VsOutput

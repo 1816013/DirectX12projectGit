@@ -13,9 +13,10 @@ class PrimitiveManager
 public:
 	PrimitiveManager(ComPtr<ID3D12Device>dev);
 	void CreatePipeline();
+	void CreateRootSignature();
 	~PrimitiveManager();
 	
-	std::shared_ptr<PlaneMesh>CreatePlane(const DirectX::XMFLOAT3& pos, float width, float depth);
+	void CreatePlane(const DirectX::XMFLOAT3& pos, float width, float depth);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorHeap* descHeap);
 private:
