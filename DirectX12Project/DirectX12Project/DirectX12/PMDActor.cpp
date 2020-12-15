@@ -275,13 +275,13 @@ bool PMDActor::CreateTransformBuffer()
 	world *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
 
 	// カメラ行列(ビュー行列)
-	XMMATRIX viewproj = XMMatrixLookAtRH(
+	XMMATRIX view = XMMatrixLookAtRH(
 		{ 0.0f, 10.0f, 30.0f, 1.0f },	// 視点
 		{ 0.0f, 10.0f, 0.0f, 1.0f },		// 注視店
 		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
 
 	// プロジェクション行列(パースペクティブ行列or射影行列)
-	viewproj *= XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
+	XMMATRIX proj = XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
 		static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
 		0.1f,	// ニア(近い)
 		1000.0f);	//　ファー(遠い)
@@ -290,13 +290,13 @@ bool PMDActor::CreateTransformBuffer()
 	// 後でいじるために開けっ放しにしておく
 	transformBuffer_->Map(0, nullptr, (void**)&mappedBasicMatrix_);
 
-	mappedBasicMatrix_->viewproj = viewproj;
+	mappedBasicMatrix_->viewproj = view * proj;
 
 	mappedBasicMatrix_->world = world;
 	XMVECTOR plane = { 0,1,0,-0.01f };		// 平面方程式
 	XMVECTOR light = { -1,1,1,0 };		// 光源行列
 	mappedBasicMatrix_->lightPos = light;
-	mappedBasicMatrix_->lightVP = viewproj;
+	mappedBasicMatrix_->lightVP = view * proj;
 	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
 	return true;
 }

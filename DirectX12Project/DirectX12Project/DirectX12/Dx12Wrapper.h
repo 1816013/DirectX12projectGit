@@ -7,6 +7,9 @@
 #include <string>
 #include <d3dx12.h>
 #include <unordered_map>
+// Effekseer
+#include <Effekseer.h>
+#include <EffekseerRendererDX12.h>
 
 using Microsoft::WRL::ComPtr;
 
@@ -179,6 +182,13 @@ private:
 	void CreateShadowPipeline();
 	void DrawShadow(BasicMatrix& mat);
 
+	/// <summary>
+	/// Effekseerèâä˙âª
+	/// </summary>
+	void InitEffekseer();
+
+	void UpdateEffekseer();
+
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
 	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;
@@ -245,4 +255,12 @@ private:
 	std::shared_ptr<PrimitiveManager> primManager_;
 
 	ComPtr<ID3D12DescriptorHeap>primitiveDescHeap_;
+
+	// Effekseer
+	EffekseerRenderer::Renderer* efkRenderer_;
+	Effekseer::Manager* efkManager_;
+	EffekseerRenderer::SingleFrameMemoryPool* efkSfMemoryPool_;
+	EffekseerRenderer::CommandList* efkCmdList_;
+	Effekseer::Effect* effect_;
+	Effekseer::Handle efkHandle_ = 0;
 };
