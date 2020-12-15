@@ -13,29 +13,41 @@ cbuffer Const:register(b0)
 
 float4 PS(BoardOutput input) : SV_TARGET
 {
-	if(input.uv.x < 0.25f && input.uv.y <0.25f)
+    if (input.uv.x < 0.25f && input.uv.y < 0.25f)
     {
         float b = shadowTex.Sample(smp, input.uv * 4.0);
        // b = pow(b, 100);
         return float4(b, b, b, 1);
     }
 	
+    
+	
 	float2 nUV = input.uv - 0.5f;
 	nUV /=time;
 	nUV += 0.5;
-
-	float2 nTex = normalTex.Sample(smp, nUV).xy;
 	
-	nUV = nUV * 2.0f - 1.0f;
-	//return nTex;
-
-	float4 col = rtvTex.Sample(smp, input.uv);
+	// ノーマルテクスチャ
+    float4 nTex = normalTex.Sample(smp, input.uv);
+	
 	float w, h, level;
-	rtvTex.GetDimensions(0, w, h, level);
-	float4 ret = float4(0, 0, 0, 0);
+	rtvTex.GetDimensions(0, w, h, level);	// スクリーン情報取得
 	float2 dt = float2(1.0f / w, 1.0f / h);
-	float4 org = rtvTex.Sample(smp, input.uv /*+ nTex.xy * dt * 35*/);
+	float4 org = rtvTex.Sample(smp, input.uv /*+ nTex.xy * dot *50*/);
+		
+	//nUV = nUV * 2.0f - 1.0f;
+	//return nTex;
+    float4 ret = float4(0, 0, 0, 0);
 
+	// 輪郭線表示
+    ret = (rtvTex.Sample(smp, input.uv) * 4 +
+		rtvTex.Sample(smp, input.uv + float2(0, dt.y)) * -1 +
+		rtvTex.Sample(smp, input.uv + float2(0, -dt.y)) * -1 +
+		rtvTex.Sample(smp, input.uv + float2(dt.x, 0)) * -1 +
+		rtvTex.Sample(smp, input.uv + float2(-dt.x, 0)) * -1);
+    float b = dot(float3(0.298912f, 0.586611f, 0.114478f), 1 - ret.rgb);
+   // return float4(b, b, b, org.a);
+
+	
 	
 	if (org.a > 0.0f)
 	{
@@ -50,7 +62,8 @@ float4 PS(BoardOutput input) : SV_TARGET
 		float4 dest = float4(fmod(input.uv / aspect, div) / div, 1, 1);
 		return dest;
 	}
-
+	//float4 col = rtvTex.Sample(smp, input.uv);
+  //  float4 ret = float4(0, 0, 0, 0);
 //	return ret;
 	// 輪郭線表示
 	/*ret =(rtvTex.Sample(smp, input.uv)* 4 +

@@ -28,7 +28,7 @@ namespace
 	constexpr int maxTexHeight = 256;
 		
 	// 中間バッファ一時保持用
-	vector<ComPtr<ID3D12Resource>>intermediateBuffList;
+	vector<ComPtr<ID3D12Resource>>intermediateBuffList_;
 }
 
 void CreateVertices()
@@ -71,83 +71,84 @@ void CreateIndices()
 	//			 };
 }
 
-bool Dx12Wrapper::CreateMonoColorTexture(ColTexType colType, const Color col)
-{	
-	HRESULT result = S_OK;
-	Size size = { minTexSize, minTexSize };
-	std::vector<Color>texData(size.width * size.height);
-	
-	std::fill(texData.begin(), texData.end(), col);	// 全部0xffで初期化
-	
-	D3D12_SUBRESOURCE_DATA subResData = {};
-	subResData.pData = texData.data();
-	subResData.RowPitch = sizeof(texData[0]) * size.width;
-	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
-	SetUploadTexure(subResData, colType);
-	
-	return true;
-}
-
-bool Dx12Wrapper::CreateGradationTexture(const Size size)
-{
-	std::vector<Color>texData(size.width * size.height);
-	for (size_t i = 0; i < 256; ++i)
-	{
-		fill_n(&texData[i * 4], 4, Color(static_cast<uint8_t>(255 - i)));	// rgb全部0x00で初期化
-	}
-	D3D12_SUBRESOURCE_DATA subResData = {};
-	subResData.pData = texData.data();
-	subResData.RowPitch = sizeof(texData[0]) * size.width;
-	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
-	SetUploadTexure(subResData, ColTexType::Grad);
-	return true;
-}
-
-void Dx12Wrapper::SetUploadTexure(D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType)
-{
-	auto& texture = defTextures_[static_cast<int>(colType)];
-	// 転送先
-	auto width = subResData.RowPitch / sizeof(Color);
-	auto height = subResData.SlicePitch / subResData.RowPitch;
-	
-	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
-	D3D12_RESOURCE_DESC resDesc = 
-		CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 
-			width,
-			static_cast<UINT>( height));
-	auto result = dev_->CreateCommittedResource(&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&resDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(texture.ReleaseAndGetAddressOf()));
-	assert(SUCCEEDED(result));
-
-	// 転送元
-	ComPtr<ID3D12Resource>intermediateBuff;	// 中間バッファ
-	auto buffSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
-	auto intermediateHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	auto intermediateResDesc = CD3DX12_RESOURCE_DESC::Buffer(buffSize);
-
-	result = dev_->CreateCommittedResource(&intermediateHeapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&intermediateResDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(intermediateBuff.ReleaseAndGetAddressOf()));
-	assert(SUCCEEDED(result));
-	intermediateBuffList.push_back(intermediateBuff);
-	
-	// コマンドリストに登録
-	// 中でCopyTextureRegionが走っているため
-	// コマンドキュー待ちが必要
-	UpdateSubresources(cmdList_.Get(), texture.Get(),
-		intermediateBuff.Get(), 0, 0, 1, &subResData);
-	cmdList_->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-}
+//bool Dx12Wrapper::CreateMonoColorTexture(ColTexType colType, const Color col)
+//{	
+//	HRESULT result = S_OK;
+//	Size size = { minTexSize, minTexSize };
+//	std::vector<Color>texData(size.width * size.height);
+//	
+//	std::fill(texData.begin(), texData.end(), col);	// 全部0xffで初期化
+//	
+//	D3D12_SUBRESOURCE_DATA subResData = {};
+//	subResData.pData = texData.data();
+//	subResData.RowPitch = sizeof(texData[0]) * size.width;
+//	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
+//	SetUploadTexure(subResData, colType);
+//	
+//	return true;
+//}
+//
+//bool Dx12Wrapper::CreateGradationTexture(const Size size)
+//{
+//	std::vector<Color>texData(size.width * size.height);
+//	for (size_t i = 0; i < 256; ++i)
+//	{
+//		fill_n(&texData[i * 4], 4, Color(static_cast<uint8_t>(255 - i)));	// rgb全部0x00で初期化
+//	}
+//	D3D12_SUBRESOURCE_DATA subResData = {};
+//	subResData.pData = texData.data();
+//	subResData.RowPitch = sizeof(texData[0]) * size.width;
+//	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
+//	SetUploadTexure(subResData, ColTexType::Grad);
+//	return true;
+//}
+//
+//void Dx12Wrapper::SetUploadTexure(D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType)
+//{
+//	defTextures_.resize(static_cast<int>(ColTexType::Max));
+//	auto& texture = defTextures_[static_cast<int>(colType)];
+//	// 転送先
+//	auto width = subResData.RowPitch / sizeof(Color);
+//	auto height = subResData.SlicePitch / subResData.RowPitch;
+//	
+//	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
+//	D3D12_RESOURCE_DESC resDesc = 
+//		CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 
+//			width,
+//			static_cast<UINT>( height));
+//	auto result = dev_->CreateCommittedResource(&heapProp,
+//		D3D12_HEAP_FLAG_NONE,
+//		&resDesc,
+//		D3D12_RESOURCE_STATE_COPY_DEST,
+//		nullptr,
+//		IID_PPV_ARGS(texture.ReleaseAndGetAddressOf()));
+//	assert(SUCCEEDED(result));
+//
+//	// 転送元
+//	ComPtr<ID3D12Resource>intermediateBuff;	// 中間バッファ
+//	auto buffSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
+//	auto intermediateHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+//	auto intermediateResDesc = CD3DX12_RESOURCE_DESC::Buffer(buffSize);
+//
+//	result = dev_->CreateCommittedResource(&intermediateHeapProp,
+//		D3D12_HEAP_FLAG_NONE,
+//		&intermediateResDesc,
+//		D3D12_RESOURCE_STATE_GENERIC_READ,
+//		nullptr,
+//		IID_PPV_ARGS(intermediateBuff.ReleaseAndGetAddressOf()));
+//	assert(SUCCEEDED(result));
+//	intermediateBuffList_.push_back(intermediateBuff);
+//	
+//	// コマンドリストに登録
+//	// 中でCopyTextureRegionが走っているため
+//	// コマンドキュー待ちが必要
+//	UpdateSubresources(cmdList_.Get(), texture.Get(),
+//		intermediateBuff.Get(), 0, 0, 1, &subResData);
+//	cmdList_->ResourceBarrier(1,
+//		&CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
+//			D3D12_RESOURCE_STATE_COPY_DEST,
+//			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+//}
 
 bool Dx12Wrapper::CreateDefaultTextures()
 {
@@ -155,12 +156,12 @@ bool Dx12Wrapper::CreateDefaultTextures()
 	cmdList_->Reset(cmdAllocator_.Get(), nullptr);
 	defTextures_.resize(static_cast<int>(ColTexType::Max));
 	// cmdListにテクスチャデータを積む
-	CreateMonoColorTexture(ColTexType::White,Color(0xff));	// 白
-	CreateMonoColorTexture(ColTexType::Black,Color(0x00));	// 黒
-	CreateGradationTexture({ minTexSize ,256 });	// グラデ
+	auto& texMng = TexManager::GetInstance();
+	texMng.CreateMonoColorTexture(cmdList_.Get(),ColTexType::White,Color(0xff));	// 白
+	texMng.CreateMonoColorTexture(cmdList_.Get(), ColTexType::Black,Color(0x00));	// 黒
+	texMng.CreateGradationTexture(cmdList_.Get(), { minTexSize ,256 });	// グラデ
 	cmdList_->Close();
 	ExecuteAndWait();
-	intermediateBuffList.clear();
 	return true;
 }
 
@@ -508,6 +509,7 @@ void Dx12Wrapper::CreateShadowMapBufferAndView()
 		IID_PPV_ARGS(shadowSRVHeap_.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(result));
 
+	// モデルに深度値をセット
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
@@ -518,7 +520,6 @@ void Dx12Wrapper::CreateShadowMapBufferAndView()
 		&srvDesc,
 		shadowSRVHeap_->GetCPUDescriptorHandleForHeapStart());
 	auto& shadowResBind = pmdActor_[0]->GetPMDResource().GetGroops(GroopType::DEPTH);
-//	shadowResBind.Init({ BuffType::SRV });
 	shadowResBind.AddBuffers(shadowDepthBuffer_.Get());
 
 }
@@ -569,17 +570,6 @@ void Dx12Wrapper::CreateShadowPipeline()
 	OutputFromErrorBlob(errBlob.Get());
 	assert(SUCCEEDED(result));
 	plsDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-	//// ピクセルシェーダ
-	//ComPtr<ID3DBlob> psBlob = nullptr;
-	//result = D3DCompileFromFile(L"Shader/ShadowPS.hlsl",
-	//	nullptr,
-	//	D3D_COMPILE_STANDARD_FILE_INCLUDE,
-	//	"ShadowPS", "ps_5_1",
-	//	0,
-	//	0, psBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
-	//OutputFromErrorBlob(errBlob.Get());
-	//assert(SUCCEEDED(result));
-	//plsDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
 	// ラスタライザ設定
 	plsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -603,39 +593,8 @@ void Dx12Wrapper::CreateShadowPipeline()
 	// ブレンド
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
-	//// ルートシグネチャ生成
-	//// ルートシグネチャ
-	//D3D12_ROOT_PARAMETER rp[1] = {};
-	//D3D12_DESCRIPTOR_RANGE range[1] = {};
-	//// レンジ
-	//// 行列定数バッファ
-	//range[0] = CD3DX12_DESCRIPTOR_RANGE(
-	//	D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // レンジタイプ b
-	//	2,// デスクリプタ数	b0～b1まで
-	//	0);// ベースレジスタ番号 b0		
-	//// ルートパラメータ
-	//// 座標変換
-	//CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
-	//	rp[0],	// ルートパラメータ
-	//	1,		// レンジ数
-	//	&range[0]// レンジ先頭アドレス
-	//	);
-	////D3D12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
-	////samplerDesc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
-	/////*samplerDesc->AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	////samplerDesc->AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;*/
-	//CD3DX12_ROOT_SIGNATURE_DESC rsDesc(1, rp/*, 1, samplerDesc*/);
-	//rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
 	// シグネチャ設定
 	ComPtr<ID3DBlob> sigBlob = nullptr;
-	/*result = D3D12SerializeRootSignature(&rsDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1,
-		&sigBlob,
-		&errBlob);
-	OutputFromErrorBlob(errBlob.Get());
-	assert(SUCCEEDED(result));*/
-
 	result = D3DGetBlobPart(vsBlob->GetBufferPointer(),
 		vsBlob->GetBufferSize(),
 		D3D_BLOB_ROOT_SIGNATURE, 0, &sigBlob);
@@ -676,12 +635,13 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 	cmdList_->RSSetScissorRects(1, &scissorRect);
 	// 描画命令
 	cmdList_->DrawIndexedInstanced(pmdActor_[0]->GetPMDModel().GetIndexData().size(), 1, 0, 0,0);
-	// リソースバリアを設定デプスからピクセルシェーダ
-	auto depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		depthBuffer_.Get(),	// リソース
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 前ターゲット
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
-	);
+	//// リソースバリアを設定デプスからピクセルシェーダ
+	//auto depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+	//	depthBuffer_.Get(),	// リソース
+	//	D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 前ターゲット
+	//	D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
+	//);
+	//cmdList_->ResourceBarrier(1, &depthBarrier);
 }
 
 Dx12Wrapper::Dx12Wrapper()
@@ -708,6 +668,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	result = CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_));
 #endif
 	assert(SUCCEEDED(result));
+	TexManager::GetInstance().SetDevice(dev_.Get());
 
 	InitCommandSet();
 	
@@ -718,11 +679,11 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	renderer_ = make_shared<Renderer>(*dev_.Get());
 	//const char* modelPath = "Resource/PMD/桜ミク/mikuXS桜ミク.pmd";
 	//const char* modelPath = "Resource/PMD/雲雀/雲雀Ver1.10SW.pmd";
-	const char* modelPath = "Resource/PMD/model/初音ミク.pmd";
+	//const char* modelPath = "Resource/PMD/model/初音ミク.pmd";
 	//const char* modelPath = "Resource/PMD/model/初音ミクmetal.pmd";
 	//const char* modelPath = "Resource/PMD/model/巡音ルカ.pmd";
 	//const char* modelPath = "Resource/PMD/我那覇響v1.0/我那覇響v1.pmd";
-	//const char* modelPath = "Resource/PMD/古明地さとり/古明地さとり152Normal.pmd";
+	const char* modelPath = "Resource/PMD/古明地さとり/古明地さとり152Normal.pmd";
 	//const char* modelPath = "Resource/PMD/霊夢/reimu_F02.pmd";
 	pmdActor_.push_back(make_shared<PMDActor>(dev_, modelPath, XMFLOAT3(0,0,0)));
 	/*modelPath = "Resource/PMD/古明地さとり/古明地さとり152Normal.pmd";
@@ -743,8 +704,8 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	CreateDefaultTextures();
 
 	// レンダー用テクスチャ作成
-	texManager_ = make_shared<TexManager>(*dev_.Get());
-	texManager_->CreateTexture(L"Resource/image/NormalMap2.png", normalMapTex_);
+	//texManager_ = make_shared<TexManager>(*dev_.Get());
+	TexManager::GetInstance().CreateTexture(L"Resource/image/NormalMap2.png", normalMapTex_);
 
 	// 1パス目書き込みバッファと対応するRTV,
 	// SRVを作る
@@ -1078,7 +1039,7 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 	desc.NodeMask = 0;
 	desc.NumDescriptors = 2;// 表と裏画面用
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rtvHeap_));
+	result = dev_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(rtvHeap_.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(result));
 
 	// レンダーターゲットを設定
@@ -1098,7 +1059,7 @@ bool Dx12Wrapper::CreateRenderTargetDescriptorHeap()
 	const auto incSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	for (int i = 0; i < num_rtvs; i++)
 	{
-		swapchain_->GetBuffer(i, IID_PPV_ARGS(&bbResouces[i]));//「キャンバス」を取得
+		swapchain_->GetBuffer(i, IID_PPV_ARGS(bbResouces[i].ReleaseAndGetAddressOf()));//「キャンバス」を取得
 		dev_->CreateRenderTargetView(bbResouces[i].Get(), &rtvDesc, heap);	// キャンパスと職人を紐づける
 		heap.ptr += incSize;// 職人とキャンバスのペアのぶん次のところまでオフセット
 	}

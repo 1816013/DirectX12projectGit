@@ -29,8 +29,13 @@ enum class ColTexType
 class TexManager
 {
 public:
-	TexManager(ID3D12Device& dev);
-
+	static TexManager& GetInstance()
+	{
+		static TexManager texM;
+		return texM;
+	}
+	//TexManager(ID3D12Device& dev);
+	~TexManager() = default;
 	/// <summary>
 	/// テクスチャ作成してバッファに書き込む
 	/// </summary>
@@ -39,17 +44,20 @@ public:
 	/// <returns></returns>
 	bool CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res);
 
-	/*/// <summary>
+	void SetDevice(ID3D12Device* dev);
+
+
+	/// <summary>
 	/// 単色テクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateMonoColorTexture(ColTexType colType, const Color col);
+	bool CreateMonoColorTexture(ID3D12GraphicsCommandList* cmdList, ColTexType colType, const Color col);
 
 	/// <summary>
 	/// グラデーションテクスチャ作成
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
-	bool CreateGradationTexture(const Size size);
+	bool CreateGradationTexture(ID3D12GraphicsCommandList* cmdList, const Size size);
 
 	/// <summary>
 	/// GPUにアップロードするための準備
@@ -57,18 +65,26 @@ public:
 	/// <param name="size">大きさ</param>
 	/// <param name="tex">テクスチャバッファ</param>
 	/// <param name="subResData"></param>
-	void SetUploadTexure(D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType);
+	void SetUploadTexure(ID3D12GraphicsCommandList* cmdList, D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType);
 
 	/// <summary>
 	/// デフォルトテクスチャ作成
 	/// </summary>
 	/// <returns></returns>
-	bool CreateDefaultTextures();*/
+	//bool CreateDefaultTextures();
+
+	ComPtr<ID3D12Resource> GetDefTex(const ColTexType& colTexType);
+	
 private:
+	TexManager();
+	TexManager(const TexManager&) = delete;
+	TexManager operator=(const TexManager&) = delete;
+
 	ComPtr<ID3D12Device> dev_;
 	// 重複したデータが入らないようにするためのデータ
 	std::unordered_map<std::wstring, ID3D12Resource*>textureResource_;
-
+	// 中間バッファ一時保持用
+	std::vector<ComPtr<ID3D12Resource>>intermediateBuffList_;
 
 	// デフォルトテクスチャ
 	std::vector<ComPtr<ID3D12Resource>>defTextures_;

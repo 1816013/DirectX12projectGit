@@ -1,5 +1,6 @@
 #include "Common.hlsli"
 
+[RootSignature(RS1)]
 VsOutput VS( float4 pos : POSITION ,float4 normal : NORMAL, float2 uv : TEXCOORD, min16uint2 boneNum : BONE_NO, float weight : WEIGHT, uint instID:SV_InstanceID) //: SV_POSITION
 {
 	VsOutput output;

@@ -73,8 +73,6 @@ private:
 	/// <param name="groopType">グループタイプ</param>
 	void CreateResouses(const std::vector<GroopType>& groopType);
 
-	ComPtr<ID3D12PipelineState> pipelineState_ = nullptr;
-	ComPtr<ID3D12RootSignature> rootSig_ = nullptr;
 	PMDResources res_;
 	ComPtr<ID3D12Device> dev_;
 };

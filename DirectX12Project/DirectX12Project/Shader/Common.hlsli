@@ -1,3 +1,13 @@
+#define RS1 "RootFlags( ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT ),"\
+              "DescriptorTable( CBV(b0,numDescriptors= 1),"	\
+							   "CBV(b1,numDescriptors= 1)),"	\
+			  "DescriptorTable( CBV(b2,numDescriptors= 1),"	\
+							   "SRV(t0,numDescriptors= 4),visibility = SHADER_VISIBILITY_PIXEL),"	\
+			  "DescriptorTable( SRV(t4,numDescriptors= 1),visibility = SHADER_VISIBILITY_PIXEL)," \
+			  "StaticSampler(s0),"\
+			  "StaticSampler(s1,addressU = TEXTURE_ADDRESS_CLAMP,addressV = TEXTURE_ADDRESS_CLAMP,addressW = TEXTURE_ADDRESS_CLAMP),"\
+			  "StaticSampler(s2,filter = FILTER_COMPARISON_MIN_MAG_MIP_LINEAR," \
+							"comparisonFunc = COMPARISON_LESS_EQUAL)" \
 // ç¿ïWïœä∑
 cbuffer Transform:register(b0)
 {

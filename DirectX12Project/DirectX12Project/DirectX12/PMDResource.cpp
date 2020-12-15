@@ -20,6 +20,10 @@ void PMDResource::CreateResouses(const std::vector<GroopType>& groopTypes)
 {
 	for (auto gType : groopTypes)
 	{
+		if (res_[static_cast<int>(gType)].resources_.size() == 0)
+		{
+			break;
+		}
 		int resIdx = 0;
 		auto buffers = res_[static_cast<int>(gType)].resources_;
 		//ディスクリプタヒープ

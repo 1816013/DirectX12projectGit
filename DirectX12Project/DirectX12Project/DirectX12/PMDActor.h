@@ -143,7 +143,7 @@ private:
 	std::shared_ptr<PMDResource> pmdResource_;
 
 	// テクスチャ管理
-	std::shared_ptr<TexManager>texManager_;
+	//std::shared_ptr<TexManager>texManager_;
 
 	// ボーンバッファ
 	ComPtr<ID3D12Resource> boneBuffer_;			// ボーン用バッファ

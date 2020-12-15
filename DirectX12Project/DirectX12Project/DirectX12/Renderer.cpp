@@ -7,7 +7,7 @@
 
 Renderer::Renderer(ID3D12Device& dev)
 {
-	CreateRootSignature(dev);
+	//CreateRootSignature(dev);
 	CreatePipelineState(dev);
 }
 
@@ -102,7 +102,6 @@ void Renderer::CreateRootSignature(ID3D12Device& dev)
 		&errBlob);
 	Common::OutputFromErrorBlob(errBlob.Get());
 	assert(SUCCEEDED(result));
-
 	// ルートシグネチャの生成
 	result = dev.CreateRootSignature(0,
 		sigBlob->GetBufferPointer(),
@@ -193,6 +192,16 @@ bool Renderer::CreatePipelineState(ID3D12Device& dev)
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
 	// ルートシグネチャ生成
+	// シグネチャ設定
+	//ComPtr<ID3DBlob> errBlob = nullptr;
+	ComPtr<ID3DBlob> sigBlob = nullptr;
+	result = D3DGetBlobPart(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &sigBlob);
+	assert(SUCCEEDED(result));
+	// ルートシグネチャの生成
+	result = dev.CreateRootSignature(0,
+		sigBlob->GetBufferPointer(),
+		sigBlob->GetBufferSize(),
+		IID_PPV_ARGS(&rootSig_));
 	plsDesc.pRootSignature = rootSig_.Get();
 	result = dev.CreateGraphicsPipelineState(&plsDesc, IID_PPV_ARGS(pipelineState_.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(result));

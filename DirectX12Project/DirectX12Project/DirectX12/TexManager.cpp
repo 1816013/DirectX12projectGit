@@ -6,9 +6,14 @@ using namespace DirectX;
 using namespace std;
 
 
-TexManager::TexManager(ID3D12Device& dev)
+ComPtr<ID3D12Resource> TexManager::GetDefTex(const ColTexType& colTexType)
 {
-	dev_ = &dev;
+	return defTextures_[static_cast<int>(colTexType)];
+}
+
+TexManager::TexManager()
+{
+
 }
 
 bool TexManager::CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res)
@@ -73,93 +78,84 @@ bool TexManager::CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>&
 	return true;
 }
 
+void TexManager::SetDevice(ID3D12Device* dev)
+{
+	dev_ = dev;
+}
 
-//bool TexManager::CreateMonoColorTexture(ColTexType colType, const Color col)
-//{
-//	HRESULT result = S_OK;
-//	Size size = { 4, 4 };
-//	std::vector<Color>texData(size.width * size.height);
-//
-//	std::fill(texData.begin(), texData.end(), col);	// 全部0xffで初期化
-//
-//	D3D12_SUBRESOURCE_DATA subResData = {};
-//	subResData.pData = texData.data();
-//	subResData.RowPitch = sizeof(texData[0]) * size.width;
-//	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
-//	SetUploadTexure(subResData, colType);
-//
-//	return true;
-//}
-//
-//bool TexManager::CreateGradationTexture(const Size size)
-//{
-//	std::vector<Color>texData(size.width * size.height);
-//	for (size_t i = 0; i < 256; ++i)
-//	{
-//		fill_n(&texData[i * 4], 4, Color(static_cast<uint8_t>(255 - i)));	// rgb全部0x00で初期化
-//	}
-//	D3D12_SUBRESOURCE_DATA subResData = {};
-//	subResData.pData = texData.data();
-//	subResData.RowPitch = sizeof(texData[0]) * size.width;
-//	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
-//	SetUploadTexure(subResData, ColTexType::Grad);
-//	return true;
-//}
-//
-//void TexManager::SetUploadTexure(D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType)
-//{
-//	auto& texture = defTextures_[static_cast<int>(colType)];
-//	// 転送先
-//	auto width = subResData.RowPitch / sizeof(Color);
-//	auto height = subResData.SlicePitch / subResData.RowPitch;
-//
-//	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
-//	D3D12_RESOURCE_DESC resDesc =
-//		CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
-//			width,
-//			static_cast<UINT>(height));
-//	auto result = dev_->CreateCommittedResource(&heapProp,
-//		D3D12_HEAP_FLAG_NONE,
-//		&resDesc,
-//		D3D12_RESOURCE_STATE_COPY_DEST,
-//		nullptr,
-//		IID_PPV_ARGS(texture.ReleaseAndGetAddressOf()));
-//	assert(SUCCEEDED(result));
-//
-//	// 転送元
-//	ComPtr<ID3D12Resource>intermediateBuff;	// 中間バッファ
-//	auto buffSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
-//	result = dev_->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-//		D3D12_HEAP_FLAG_NONE,
-//		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
-//		D3D12_RESOURCE_STATE_GENERIC_READ,
-//		nullptr,
-//		IID_PPV_ARGS(intermediateBuff.ReleaseAndGetAddressOf()));
-//	assert(SUCCEEDED(result));
-//	intermediateBuffList.push_back(intermediateBuff);
-//
-//	// コマンドリストに登録
-//	// 中でCopyTextureRegionが走っているため
-//	// コマンドキュー待ちが必要
-//	UpdateSubresources(cmdList_.Get(), texture.Get(),
-//		intermediateBuff.Get(), 0, 0, 1, &subResData);
-//	cmdList_->ResourceBarrier(1,
-//		&CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
-//			D3D12_RESOURCE_STATE_COPY_DEST,
-//			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-//}
-//
-//bool TexManager::CreateDefaultTextures()
-//{
-//	cmdAllocator_->Reset();
-//	cmdList_->Reset(cmdAllocator_.Get(), nullptr);
-//	defTextures_.resize(static_cast<int>(ColTexType::Max));
-//	// cmdListにテクスチャデータを積む
-//	CreateMonoColorTexture(ColTexType::White, Color(0xff));	// 白
-//	CreateMonoColorTexture(ColTexType::Black, Color(0x00));	// 黒
-//	CreateGradationTexture({ 4 ,256 });	// グラデ
-//	cmdList_->Close();
-//	ExecuteAndWait();
-//	intermediateBuffList.clear();
-//	return true;
-//}
+
+bool TexManager::CreateMonoColorTexture(ID3D12GraphicsCommandList* cmdList, ColTexType colType, const Color col)
+{
+	HRESULT result = S_OK;
+	Size size = { 4, 4 };
+	std::vector<Color>texData(size.width * size.height);
+
+	std::fill(texData.begin(), texData.end(), col);	// 全部0xffで初期化
+
+	D3D12_SUBRESOURCE_DATA subResData = {};
+	subResData.pData = texData.data();
+	subResData.RowPitch = sizeof(texData[0]) * size.width;
+	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
+	SetUploadTexure(cmdList, subResData, colType);
+
+	return true;
+}
+
+bool TexManager::CreateGradationTexture(ID3D12GraphicsCommandList* cmdList, const Size size)
+{
+	std::vector<Color>texData(size.width * size.height);
+	for (size_t i = 0; i < 256; ++i)
+	{
+		fill_n(&texData[i * 4], 4, Color(static_cast<uint8_t>(255 - i)));	// rgb全部0x00で初期化
+	}
+	D3D12_SUBRESOURCE_DATA subResData = {};
+	subResData.pData = texData.data();
+	subResData.RowPitch = sizeof(texData[0]) * size.width;
+	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
+	SetUploadTexure(cmdList, subResData, ColTexType::Grad);
+	return true;
+}
+
+void TexManager::SetUploadTexure(ID3D12GraphicsCommandList* cmdList, D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType)
+{
+	defTextures_.resize(static_cast<int>(ColTexType::Max));
+	auto& texture = defTextures_[static_cast<int>(colType)];
+	// 転送先
+	auto width = subResData.RowPitch / sizeof(Color);
+	auto height = subResData.SlicePitch / subResData.RowPitch;
+
+	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
+	D3D12_RESOURCE_DESC resDesc =
+		CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+			width,
+			static_cast<UINT>(height));
+	auto result = dev_->CreateCommittedResource(&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(texture.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+
+	// 転送元
+	ComPtr<ID3D12Resource>intermediateBuff;	// 中間バッファ
+	auto buffSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
+	result = dev_->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(intermediateBuff.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+	intermediateBuffList_.push_back(intermediateBuff);
+
+	// コマンドリストに登録
+	// 中でCopyTextureRegionが走っているため
+	// コマンドキュー待ちが必要
+	UpdateSubresources(cmdList, texture.Get(),
+		intermediateBuff.Get(), 0, 0, 1, &subResData);
+	cmdList->ResourceBarrier(1,
+		&CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+}

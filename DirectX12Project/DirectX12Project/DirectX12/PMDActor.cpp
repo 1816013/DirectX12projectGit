@@ -19,7 +19,7 @@ namespace
 PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos) : dev_(dev)
 {
 	pos_ = pos;
-	texManager_ = make_shared<TexManager>(*dev.Get());
+	//texManager_ = make_shared<TexManager>(*dev.Get());
 	pmdModel_ = make_shared<PMDLoder>();
 	pmdModel_->Load(path);
 	pmdResource_ = make_shared<PMDResource>(*dev.Get());
@@ -32,9 +32,10 @@ PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos) : 
 
 void PMDActor::CreatePMDModelTexture()
 {
-	auto modelPath = pmdModel_->GetModelPath();
+	auto& modelPath = pmdModel_->GetModelPath();
 	auto& paths = pmdModel_->GetTexturePaths();
 	auto& toonPaths = pmdModel_->GetToonPaths();
+	auto& texManager = TexManager::GetInstance();
 	for (auto tex : texTable)
 	{
 		if (textures_[tex].size() == 0)
@@ -51,12 +52,12 @@ void PMDActor::CreatePMDModelTexture()
 		{
 			string strToonPath = StrOperater::GetTextureFromModelAndTexPath(modelPath, toonPaths[i]);
 					
-			if (!texManager_->CreateTexture(
+			if (!texManager.CreateTexture(
 				StrOperater::GetWideStringfromString(strToonPath),
 				toonBuffers[i]))
 			{
 				strToonPath = "Resource/PMD/toon/" + toonPaths[i];
-				auto result = texManager_->CreateTexture(
+				auto result = texManager.CreateTexture(
 					StrOperater::GetWideStringfromString(strToonPath),
 					toonBuffers[i]);
 				assert(result);
@@ -78,7 +79,7 @@ void PMDActor::CreatePMDModelTexture()
 				ext = "bmp";
 			}
 			auto str = StrOperater::GetTextureFromModelAndTexPath(modelPath, path);
-			auto result = texManager_->CreateTexture(
+			auto result = texManager.CreateTexture(
 				StrOperater::GetWideStringfromString(str),
 				matBuffers[i]);
 			
@@ -118,13 +119,21 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 	cmdList->SetDescriptorHeaps(1, deskHeaps);
 	cmdList->SetGraphicsRootDescriptorTable(0, heapPos);
 
-	// 座標変換ヒープセット
+	// リソースバリアを設定デプスからピクセルシェーダ
+	auto depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		pmdResource_->GetGroops(GroopType::DEPTH).resources_[0].resource,	// リソース
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 前ターゲット
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE	// 後ろターゲット
+	);
+	cmdList->ResourceBarrier(1, &depthBarrier);
+	// セルフ影ヒープセット
 	auto shadowResHeap = pmdResource_->GetGroops(GroopType::DEPTH).descHeap_.Get();
 	ID3D12DescriptorHeap* shadowDeskHeaps[] = { shadowResHeap/*resViewHeap_.Get()*/ };
 	auto shadowHeapPos = /*resViewHeap_*/shadowResHeap->GetGPUDescriptorHandleForHeapStart();
 	cmdList->SetDescriptorHeaps(1, shadowDeskHeaps);
 	cmdList->SetGraphicsRootDescriptorTable(2, shadowHeapPos);
 
+	
 	// マテリアル&テクスチャヒープセット
 	auto material = GetPMDModel().GetMaterialData();
 	uint32_t indexOffset = 0;
@@ -148,7 +157,13 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 		indexOffset += indexNum;
 		materialHeapPos.ptr += static_cast<UINT64>(heapSize) * descNum;
 	}
-
+	// リソースバリアを設定デプスからピクセルシェーダ
+	depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		pmdResource_->GetGroops(GroopType::DEPTH).resources_[0].resource,	// リソース
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,	// 前ターゲット
+		D3D12_RESOURCE_STATE_DEPTH_WRITE	// 後ろターゲット
+	);
+	cmdList->ResourceBarrier(1, &depthBarrier);
 	
 }
 
@@ -319,7 +334,7 @@ void PMDActor::Update(float delta)
 	XMVECTOR light = { -1.0f,1.0f,1.0f,0.0f };		// 光源行列
 	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
 	frame_ += delta * 30;
-	UpdateBones(static_cast<int>(fmodf(frame_, vmdMotion_->GetVMDData().duration)));
+	//UpdateBones(static_cast<int>(fmodf(frame_, vmdMotion_->GetVMDData().duration)));
 	
 }
 
@@ -350,13 +365,14 @@ bool PMDActor::CreateMaterialBufferView(std::vector<ComPtr<ID3D12Resource>>&defT
 	result = materialBuffer_->Map(0, nullptr, (void**)&mappedMaterial);
 	assert(SUCCEEDED(result));
 
+	auto& texMng = TexManager::GetInstance();
+
 	auto& transResBind = pmdResource_->GetGroops(GroopType::MATERIAL);
-	//transResBind.Init({ BuffType::CBV, BuffType::SRV, BuffType::SRV, BuffType::SRV, BuffType::SRV });
 	array<pair<string, ID3D12Resource*>, 4>texPairList;
-	texPairList = { make_pair("bmp",defTexs[static_cast<int>(ColTexType::White)].Get()),
-					make_pair("sph",defTexs[static_cast<int>(ColTexType::White)].Get()),
-					make_pair("spa",defTexs[static_cast<int>(ColTexType::Black)].Get()),
-					make_pair("toon",defTexs[static_cast<int>(ColTexType::Grad)].Get()) };
+	texPairList = { make_pair("bmp",texMng.GetDefTex(ColTexType::White).Get()),
+					make_pair("sph",texMng.GetDefTex(ColTexType::White).Get()),
+					make_pair("spa",texMng.GetDefTex(ColTexType::Black).Get()),
+					make_pair("toon",texMng.GetDefTex(ColTexType::Grad).Get()) };
 	for (int i = 0; i < mats.size(); ++i)
 	{
 		// マテリアル定数バッファビュー
@@ -389,7 +405,6 @@ void PMDActor::UpdateBones(int currentFrameNo)
 	mats.resize(bData.size());
 	fill(mats.begin(), mats.end(), XMMatrixIdentity());
 
-	//auto a = vmdMotion_->GetVMDData().data;
 	for (auto& motion : vmdMotion_->GetVMDData().data)
 	{
 		// ボーンがあるかどうか
@@ -397,8 +412,7 @@ void PMDActor::UpdateBones(int currentFrameNo)
 		{
 			continue;
 		}
-		auto bidx = boneTable_[motion.first];
-		auto& bpos = bData[bidx].pos;
+		
 		// 今のフレーム時間よりも低いものを捜索
 		auto rit = find_if(motion.second.rbegin(), motion.second.rend(),
 			[currentFrameNo](const auto& v)
@@ -406,12 +420,12 @@ void PMDActor::UpdateBones(int currentFrameNo)
 				return v.frameNo <= currentFrameNo;
 			});
 
-		auto q = XMLoadFloat4(&motion.second[0].quaternion);
+		auto quaternion = XMLoadFloat4(&motion.second[0].quaternion);
 		XMFLOAT3 mov(0, 0, 0);
 		if (rit != motion.second.rend())
 		{
 			mov = rit->pos;
-			q = XMLoadFloat4(&rit->quaternion);
+			quaternion = XMLoadFloat4(&rit->quaternion);
 			auto it = rit.base();
 			if (it != motion.second.end())
 			{
@@ -422,19 +436,22 @@ void PMDActor::UpdateBones(int currentFrameNo)
 				t = CalucurateFromBezier(t, it->bz);
 
 				// 補間を適用
-				//q = (1.0f - t) * q + t * XMLoadFloat4(&it->quaternion);
-				q = XMQuaternionSlerp(q, XMLoadFloat4(&it->quaternion), t);
+				quaternion = XMQuaternionSlerp(quaternion, XMLoadFloat4(&it->quaternion), t);
 				auto vPos = XMVectorLerp(XMLoadFloat3(&mov), XMLoadFloat3(&it->pos), t);
 				XMStoreFloat3(&mov, vPos);
-
 			}
 		}
-
+		// ボーンのインデックス番号
+		auto bidx = boneTable_[motion.first];
+		// ボーンの座標
+		auto& bpos = bData[bidx].pos;
+		// 初期化
 		mats[bidx] = XMMatrixIdentity();
+		// 原点に戻す
 		mats[bidx] *= XMMatrixTranslation(-bpos.x, -bpos.y, -bpos.z);
 		// 回転
-		mats[bidx] *= XMMatrixRotationQuaternion(q);
-
+		mats[bidx] *= XMMatrixRotationQuaternion(quaternion);
+		// 元の位置へ移動
 		mats[bidx] *= XMMatrixTranslation(bpos.x, bpos.y, bpos.z);
 		// 移動
 		mats[bidx] *= XMMatrixTranslation(mov.x, mov.y, mov.z);
@@ -458,7 +475,6 @@ float PMDActor::CalucurateFromBezier(float x, const DirectX::XMFLOAT2 bz[2], siz
 	// t^3 = 3*P1.x + 3*P2.x +1
 	// t^2 = -6*P1.x + 3*P2.x;
 	// t = 3*P1.x
-
 	// MMDのベジェの特性上t=xが近いから初期値t=x
 	float t = x;
 	float k3 = 3 * bz[0].x - 3 * bz[1].x + 1;	// t^3
@@ -488,11 +504,9 @@ float PMDActor::CalucurateFromBezier(float x, const DirectX::XMFLOAT2 bz[2], siz
 
 void PMDActor::RecursiveCalucurate(const std::vector<PMDBone>& bones, std::vector<DirectX::XMMATRIX>& mats, int idx)
 {
-	auto& mat = mats[idx];
-	auto& bone = bones[idx];
-	for (auto child : bone.children)
+	for (auto child : bones[idx].children)
 	{
-		mats[child] *= mat;
+		mats[child] *= mats[idx];
 		RecursiveCalucurate(bones, mats, child);
 	}
 }

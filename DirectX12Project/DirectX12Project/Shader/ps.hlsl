@@ -1,6 +1,6 @@
 #include "Common.hlsli"
 
-
+[RootSignature(RS1)]
 float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
 {
 	//float2 bno = float2(input.boneNum % 2);
@@ -27,9 +27,7 @@ float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
 	{
 		return float4(0, 0, 0, 1);
 	}
-	
 
-    
     float bbias = 1.0f;
     float sCol = 0.5f;	// âeêF
     float epsilon = 0.0005f;
