@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d12.h>
+#include <unordered_map>
 // Effekseer
 #include <Effekseer.h>
 #include <EffekseerRendererDX12.h>
@@ -10,15 +11,15 @@ public:
 
 	void Init(ID3D12Device* dev, ID3D12CommandQueue* cmdQue);
 	void Update(float delta, ID3D12GraphicsCommandList* cmdList);
-	void AddEffect();
-	void PlayEffect();
+	void AddEffect(std::string name);
+	void PlayEffect(std::string name, Effekseer::Vector3D pos);
 private:
 	// Effekseer
 	EffekseerRenderer::Renderer* efkRenderer_;
 	Effekseer::Manager* efkManager_;
 	EffekseerRenderer::SingleFrameMemoryPool* efkSfMemoryPool_;
 	EffekseerRenderer::CommandList* efkCmdList_;
-	Effekseer::Effect* effect_;
-	Effekseer::Handle efkHandle_ = 0;
+	std::unordered_map<std::string, Effekseer::Effect*>(effect_);
+	std::unordered_map <std::string, Effekseer::Handle> efkHandle_;
 };
 

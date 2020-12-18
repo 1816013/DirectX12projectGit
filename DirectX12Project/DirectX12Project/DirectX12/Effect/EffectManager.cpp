@@ -41,9 +41,10 @@ void EffectManager::Init(ID3D12Device* dev, ID3D12CommandQueue* cmdQue)
 	efkManager_->SetModelLoader(efkRenderer_->CreateModelLoader());
 	efkManager_->SetMaterialLoader(efkRenderer_->CreateMaterialLoader());
 
-	effect_ = Effekseer::Effect::Create(efkManager_, u"Resource/Effect/depthtest.efk");
+	//effect_.emplace("depthTest",Effekseer::Effect::Create(efkManager_, u"Resource/Effect/depthtest.efk"));
+	AddEffect("depthTest");
 	//efkHandle_ = efkManager_->Play(effect_, 0, 10, 0);
-	assert(effect_ != nullptr);
+	assert(effect_["depthTest"] != nullptr);
 }
 
 void EffectManager::Update(float delta, ID3D12GraphicsCommandList* cmdList)
@@ -88,7 +89,7 @@ void EffectManager::Update(float delta, ID3D12GraphicsCommandList* cmdList)
 	efkRenderer_->SetCommandList(efkCmdList_);
 
 	efkManager_->Update(delta);
-	efkManager_->AddLocation(efkHandle_, Effekseer::Vector3D(0.2f, 0.0f, 0.0f)* delta);
+	//efkManager_->AddLocation(efkHandle_[], Effekseer::Vector3D(0.2f, 0.0f, 0.0f)* delta);
 	efkRenderer_->BeginRendering();
 	efkManager_->Draw();
 	efkRenderer_->EndRendering();
@@ -96,15 +97,17 @@ void EffectManager::Update(float delta, ID3D12GraphicsCommandList* cmdList)
 	EffekseerRendererDX12::EndCommandList(efkCmdList_);
 }
 
-void EffectManager::AddEffect()
+void EffectManager::AddEffect(std::string name)
 {
+	effect_.try_emplace(name, Effekseer::Effect::Create(efkManager_, u"Resource/Effect/depthtest.efk"));
 }
 
-void EffectManager::PlayEffect()
+
+void EffectManager::PlayEffect(std::string name, Effekseer::Vector3D pos)
 {
-	if (efkManager_->Exists(efkHandle_))
+	if (efkManager_->Exists(efkHandle_[name]))
 	{
-		efkManager_->StopEffect(efkHandle_);
+		efkManager_->StopEffect(efkHandle_[name]);
 	}
-	efkHandle_ = efkManager_->Play(effect_, 0, 10, 0);
+	efkHandle_[name] = efkManager_->Play(effect_[name], pos);
 }

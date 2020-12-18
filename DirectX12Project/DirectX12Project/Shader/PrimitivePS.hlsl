@@ -8,15 +8,27 @@ struct PrimOut
     float4 lvpos : POSITION1; // ライトから見た頂点
 };
 
-float4 PrimitivePS(PrimOut input) : SV_TARGET
+struct PsOutput
 {
+    float4 color : SV_TARGET0;
+    float4 normal : SV_TARGET1;
+};
+
+PsOutput PrimitivePS(PrimOut input)
+{
+    PsOutput output;
     // ライトから見た座標は-1～1に正規化されるためuv値に利用できる
     float2 uv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
+   
     if (input.lvpos.z > lightDepthTex.Sample(smp, uv))
     {
-        return float4(0.5, 0.5, 0.5, 1);
+        output.color = float4(0.5, 0.5, 0.5, 1);
+
+        return output;
 
     }
+    output.color = float4(1, 1, 1, 1);
+    output.normal = float4(0, 1, 0, 1);
     //float4 b = lightDepthTex.Sample(smp, uv);
-    return float4(1, 1, 1, 1);
+    return output;
 }

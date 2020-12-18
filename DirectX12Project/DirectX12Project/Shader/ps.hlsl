@@ -1,8 +1,14 @@
 #include "Common.hlsli"
+struct PsOutput
+{
+    float4 color : SV_TARGET0; 
+    float4 normal : SV_TARGET1;
+};
 
 [RootSignature(RS1)]
-float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
+PsOutput PS(VsOutput input, uint instID : SV_InstanceID) 
 {
+    PsOutput output;
 	float3 light = normalize(float3(-1, 1, 1));
 	float b = saturate(dot(input.norm.xyz, light));
 	float4 toonCol = toon.Sample(toonSmp, float2(0.0f,1.0f - b));
@@ -21,7 +27,7 @@ float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
 	//return float4(toonCol.rgb,toonCol.a);
 	if (instID == 1)
 	{
-		return float4(0, 0, 0, 1);
+		//return float4(0, 0, 0, 1);
 	}
 
     float bbias = 1.0f;
@@ -34,9 +40,12 @@ float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
     //{
     //    bbias = 0.5f;
     //}
-    return float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
+    output.color = float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)
-		+ float4(texCol.rgb * ambient.rgb * 0.5,1) ;
+		+ float4(texCol.rgb * ambient.rgb * 0.5, 1);
+    output.normal = float4(input.norm.xyz, 1);
+	
+    return output;
 }

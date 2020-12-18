@@ -71,8 +71,9 @@ void PrimitiveManager::CreatePipeline()
 	plsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 	// o—Íİ’è
-	plsDesc.NumRenderTargets = 1;
+	plsDesc.NumRenderTargets = 2;
 	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	plsDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// ƒuƒŒƒ“ƒh
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);

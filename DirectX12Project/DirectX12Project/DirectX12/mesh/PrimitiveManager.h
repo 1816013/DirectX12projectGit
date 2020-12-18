@@ -12,7 +12,14 @@ class PrimitiveManager
 {
 public:
 	PrimitiveManager(ComPtr<ID3D12Device>dev);
+
+	/// <summary>
+	/// パイプライン作成
+	/// </summary>
 	void CreatePipeline();
+	/// <summary>
+	/// ルートシグネチャ生成
+	/// </summary>
 	void CreateRootSignature();
 	~PrimitiveManager();
 	

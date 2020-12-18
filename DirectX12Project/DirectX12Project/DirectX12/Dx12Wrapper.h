@@ -7,6 +7,7 @@
 #include <string>
 #include <d3dx12.h>
 #include <unordered_map>
+#include <array>
 
 
 using Microsoft::WRL::ComPtr;
@@ -75,7 +76,7 @@ private:
 	/// DirectXの機能レベルを確認する
 	/// </summary>
 	/// <returns>true:成功　false:失敗</returns>
-	bool CheckFeatureLevel();
+	bool CreateDevice(IDXGIAdapter* adapter);
 
 	/// <summary>
 	/// 各種コマンド類初期化(cmdAllocator_, cmdList_, cmdQue_ )
@@ -107,27 +108,7 @@ private:
 	/// </summary>
 	/// <returns>true:成功 false:失敗</returns>
 	bool InitViewRect();
-	
-	/// <summary>
-	/// 単色テクスチャ作成
-	/// </summary>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreateMonoColorTexture(ColTexType colType, const Color col);
 
-	/// <summary>
-	/// グラデーションテクスチャ作成
-	/// </summary>
-	/// <returns>true:成功 false:失敗</returns>
-	bool CreateGradationTexture( const Size size);
-
-	/// <summary>
-	/// GPUにアップロードするための準備
-	/// </summary>
-	/// <param name="size">大きさ</param>
-	/// <param name="tex">テクスチャバッファ</param>
-	/// <param name="subResData"></param>
-	void SetUploadTexure( D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType);
-	
 	/// <summary>
 	/// デフォルトテクスチャ作成
 	/// </summary>
@@ -179,14 +160,12 @@ private:
 	/// 影用パイプライン生成
 	/// </summary>
 	void CreateShadowPipeline();
-	void DrawShadow(BasicMatrix& mat);
 
 	/// <summary>
-	/// Effekseer初期化
+	/// 影描画
 	/// </summary>
-	void InitEffekseer();
-
-	void UpdateEffekseer(float frame);
+	/// <param name="mat"></param>
+	void DrawShadow(BasicMatrix& mat);
 
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
@@ -227,7 +206,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> firstRtvHeap_ = nullptr;	
 	ComPtr<ID3D12DescriptorHeap> firstSrvHeap_ = nullptr;
 	//ポストエフェクト用テクスチャ
-	ComPtr<ID3D12Resource> rtTexture_ = nullptr;
+	std::array<ComPtr<ID3D12Resource>,2> rtTextures_;	// 0:描画用,1:法線 
 
 	// 板ポリ頂点
 	// TRIANGLE_STRIPで作る
@@ -252,7 +231,6 @@ private:
 
 	// 床
 	std::shared_ptr<PrimitiveManager> primManager_;
-
 	ComPtr<ID3D12DescriptorHeap>primitiveDescHeap_;
 
 	// エフェクト

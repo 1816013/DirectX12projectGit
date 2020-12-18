@@ -13,7 +13,6 @@ ComPtr<ID3D12Resource> TexManager::GetDefTex(const ColTexType& colTexType)
 
 TexManager::TexManager()
 {
-
 }
 
 bool TexManager::CreateTexture(const std::wstring& path, ComPtr<ID3D12Resource>& res)
