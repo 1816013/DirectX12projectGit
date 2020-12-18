@@ -10,6 +10,7 @@
 #include "TexManager.h"
 #include "Renderer.h"
 #include "mesh/PrimitiveManager.h"
+#include "Effect/EffectManager.h"
 
 
 //#include "../BMPLoder/BmpLoder.h"
@@ -286,7 +287,7 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; 
 	srvHeapDesc.NodeMask = 0;
-	srvHeapDesc.NumDescriptors = 4;
+	srvHeapDesc.NumDescriptors = 5;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	result = dev_->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(firstSrvHeap_.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(result));
@@ -301,7 +302,7 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	cbvDesc.BufferLocation = boardConstBuffer_->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = static_cast<UINT>(cbDesc.Width);
 	dev_->CreateConstantBufferView(&cbvDesc, srvHeapPos);
-
+	// 1パス目のレンダリング結果
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = resDesc.Format;
 	srvDesc.Texture2D.MipLevels = 1;
@@ -313,10 +314,14 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	srvDesc.Format = normalMapTex_->GetDesc().Format;
 	srvHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	dev_->CreateShaderResourceView(normalMapTex_.Get(), &srvDesc, srvHeapPos);
-	// デプス
+	// ライト深度
 	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
 	srvHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	dev_->CreateShaderResourceView(shadowDepthBuffer_.Get(), &srvDesc, srvHeapPos);
+	// ライト深度
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvHeapPos.ptr += dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	dev_->CreateShaderResourceView(depthBuffer_.Get(), &srvDesc, srvHeapPos);
 	
 	
 }
@@ -414,7 +419,7 @@ void Dx12Wrapper::CreateBoardPipeline()
 	// 行列定数バッファ
 	range[0] = CD3DX12_DESCRIPTOR_RANGE(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
-		3,// デスクリプタ数	t0～t2まで
+		4,// デスクリプタ数	t0～t2まで	1:1パス目,2:歪み用,3:ライトパス, 4: 深度テクスチャ
 		0);// ベースレジスタ番号 t0	
 
 	range[1] = CD3DX12_DESCRIPTOR_RANGE(
@@ -655,88 +660,91 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 
 void Dx12Wrapper::InitEffekseer()
 {
-	// レンダラー作成
-	auto formats = DXGI_FORMAT_R8G8B8A8_UNORM;
-	efkRenderer_ = EffekseerRendererDX12::Create(dev_.Get(), cmdQue_.Get(), 2,
-		&formats,
-		1,
-		DXGI_FORMAT_UNKNOWN,
-		false,
-		8000);
-
-	// メモリプールの作成
-	efkSfMemoryPool_ = EffekseerRendererDX12::CreateSingleFrameMemoryPool(efkRenderer_);
-
-	// コマンドリストの作成
-	efkCmdList_ = EffekseerRendererDX12::CreateCommandList(efkRenderer_, efkSfMemoryPool_);
-
-	// エフェクトマネージャ作成
-	efkManager_ = Effekseer::Manager::Create(8000);
-
-	// レンダラセット
-	efkManager_->SetSpriteRenderer(efkRenderer_->CreateSpriteRenderer());
-	efkManager_->SetRibbonRenderer(efkRenderer_->CreateRibbonRenderer());
-	efkManager_->SetRingRenderer(efkRenderer_->CreateRingRenderer());
-	efkManager_->SetTrackRenderer(efkRenderer_->CreateTrackRenderer());
-	efkManager_->SetModelRenderer(efkRenderer_->CreateModelRenderer());
-
-	// ローダーセット
-	efkManager_->SetTextureLoader(efkRenderer_->CreateTextureLoader());
-	efkManager_->SetModelLoader(efkRenderer_->CreateModelLoader());
-	efkManager_->SetMaterialLoader(efkRenderer_->CreateMaterialLoader());
-
-	effect_ = Effekseer::Effect::Create(efkManager_,u"Resource/Effect/Laser01.efk");
-	efkHandle_ = efkManager_->Play(effect_, 0, 0, 0);
-	assert(effect_ != nullptr);
+//	// レンダラー作成
+//	auto formats = DXGI_FORMAT_R8G8B8A8_UNORM;
+//	efkRenderer_ = EffekseerRendererDX12::Create(dev_.Get(), cmdQue_.Get(), 2,
+//		&formats,
+//		1,
+//		DXGI_FORMAT_UNKNOWN,
+//		false,
+//		8000);
+//
+//	// メモリプールの作成
+//	efkSfMemoryPool_ = EffekseerRendererDX12::CreateSingleFrameMemoryPool(efkRenderer_);
+//
+//	// コマンドリストの作成
+//	efkCmdList_ = EffekseerRendererDX12::CreateCommandList(efkRenderer_, efkSfMemoryPool_);
+//
+//	// エフェクトマネージャ作成
+//	efkManager_ = Effekseer::Manager::Create(8000);
+//
+//	// レンダラセット
+//	efkManager_->SetSpriteRenderer(efkRenderer_->CreateSpriteRenderer());
+//	efkManager_->SetRibbonRenderer(efkRenderer_->CreateRibbonRenderer());
+//	efkManager_->SetRingRenderer(efkRenderer_->CreateRingRenderer());
+//	efkManager_->SetTrackRenderer(efkRenderer_->CreateTrackRenderer());
+//	efkManager_->SetModelRenderer(efkRenderer_->CreateModelRenderer());
+//
+//	// ローダーセット
+//	efkManager_->SetTextureLoader(efkRenderer_->CreateTextureLoader());
+//	efkManager_->SetModelLoader(efkRenderer_->CreateModelLoader());
+//	efkManager_->SetMaterialLoader(efkRenderer_->CreateMaterialLoader());
+//
+//	effect_ = Effekseer::Effect::Create(efkManager_,u"Resource/Effect/depthtest.efk");
+//	//efkHandle_ = efkManager_->Play(effect_, 0, 10, 0);
+//	assert(effect_ != nullptr);
 }
 
-void Dx12Wrapper::UpdateEffekseer()
+void Dx12Wrapper::UpdateEffekseer(float frame)
 {
-	// カメラ行列(ビュー行列)
-	XMMATRIX view = XMMatrixLookAtRH(
-		{ 0.0f, 10.0f, 30.0f, 1.0f },	// 視点
-		{ 0.0f, 10.0f, 0.0f, 1.0f },		// 注視店
-		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
-	auto wSize = Application::GetInstance().GetWindowSize();
-	// プロジェクション行列(パースペクティブ行列or射影行列)
-	XMMATRIX proj = XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
-		static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
-		0.1f,	// ニア(近い)
-		1000.0f);	//　ファー(遠い)
-	Effekseer::Matrix44 cameraMat;
-	Effekseer::Matrix44 projMat;
+	//// カメラ行列(ビュー行列)
+	//XMMATRIX view = XMMatrixLookAtRH(
+	//	{ 0.0f, 10.0f, 30.0f, 1.0f },	// 視点
+	//	{ 0.0f, 10.0f, 0.0f, 1.0f },		// 注視店
+	//	{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
+	//auto wSize = Application::GetInstance().GetWindowSize();
+	//// プロジェクション行列(パースペクティブ行列or射影行列)
+	//XMMATRIX proj = XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
+	//	static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+	//	0.1f,	// ニア(近い)
+	//	1000.0f);	//　ファー(遠い)
+	//Effekseer::Matrix44 cameraMat;
+	//Effekseer::Matrix44 projMat;
 
-	for (int j = 0; j < 4; ++j)
-	{
-		for (int i = 0; i < 4; ++i)
-		{
-			cameraMat.Values[j][i] = view.r[j].m128_f32[i];
-			projMat.Values[j][i] = proj.r[j].m128_f32[i];
-		}
-	}
-	efkRenderer_->SetProjectionMatrix(
-		::Effekseer::Matrix44().PerspectiveFovRH(90.0f / 180.0f * 3.14f, (float)wSize.width / (float)wSize.height, 1.0f, 500.0f));
+	//for (int j = 0; j < 4; ++j)
+	//{
+	//	for (int i = 0; i < 4; ++i)
+	//	{
+	//		cameraMat.Values[j][i] = view.r[j].m128_f32[i];
+	//		projMat.Values[j][i] = proj.r[j].m128_f32[i];
+	//	}
+	//}
+	//efkRenderer_->SetProjectionMatrix(
+	//	::Effekseer::Matrix44().PerspectiveFovRH(90.0f / 180.0f * 3.14f, (float)wSize.width / (float)wSize.height, 1.0f, 500.0f));
 
-	// Specify a camera matrix
-	// カメラ行列を設定
-	efkRenderer_->SetCameraMatrix(
-		::Effekseer::Matrix44().LookAtRH({10,5,20}, ::Effekseer::Vector3D(0.0f, 0.0f, 0.0f), ::Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
+	//// Specify a camera matrix
+	//// カメラ行列を設定
+	//efkRenderer_->SetCameraMatrix(
+	//	::Effekseer::Matrix44().LookAtRH({10,5,20}, ::Effekseer::Vector3D(0.0f, 0.0f, 0.0f), ::Effekseer::Vector3D(0.0f, 1.0f, 0.0f)));
 
-	// カメラ行列を設定
-	efkRenderer_->SetCameraMatrix(cameraMat);
-	// 投影行列を設定
-	efkRenderer_->SetProjectionMatrix(projMat);
+	//// カメラ行列を設定
+	//efkRenderer_->SetCameraMatrix(cameraMat);
+	//// 投影行列を設定
+	//efkRenderer_->SetProjectionMatrix(projMat);
 
-	efkSfMemoryPool_->NewFrame();
-	EffekseerRendererDX12::BeginCommandList(efkCmdList_, cmdList_.Get());
-	efkRenderer_->SetCommandList(efkCmdList_);
+	//efkSfMemoryPool_->NewFrame();
+	//EffekseerRendererDX12::BeginCommandList(efkCmdList_, cmdList_.Get());
+	//efkRenderer_->SetCommandList(efkCmdList_);
 
-	efkManager_->Update();
-	efkRenderer_->BeginRendering();
-	efkManager_->Draw();
-	efkRenderer_->EndRendering();
-	efkRenderer_->SetCommandList(nullptr);
-	EffekseerRendererDX12::EndCommandList(efkCmdList_);
+	//
+
+	//efkManager_->Update(frame);
+	//efkManager_->AddLocation(efkHandle_, Effekseer::Vector3D(0.2f, 0.0f, 0.0f)* frame);
+	//efkRenderer_->BeginRendering();
+	//efkManager_->Draw();
+	//efkRenderer_->EndRendering();
+	//efkRenderer_->SetCommandList(nullptr);
+	//EffekseerRendererDX12::EndCommandList(efkCmdList_);
 }
 
 Dx12Wrapper::Dx12Wrapper()
@@ -839,7 +847,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	primManager_ = make_shared<PrimitiveManager>(dev_);
 	primManager_->CreatePlane(XMFLOAT3(0, 0, 0), 50, 50);
 	InitEffekseer();
-
+	efcMng_ = make_shared<EffectManager>(dev_.Get(), cmdQue_.Get());
 
 	return true;
 }
@@ -921,19 +929,24 @@ bool Dx12Wrapper::Update()
 		actor->DrawModel(cmdList_);
 	}
 	primManager_->Draw(cmdList_.Get(), primitiveDescHeap_.Get());
-	if (frame % 300)
+	
+	// エフェクト(effekseer)
+	efcMng_->Update(deltaTime * 60, cmdList_.Get());
+	BYTE keyState[256];
+	static BYTE lastState[256];
+	auto result = GetKeyboardState(keyState);
+	if (keyState[VK_SPACE] & 0x80 && !(lastState[VK_SPACE] & 0x80))
 	{
-		//efkManager_->Play(effect_, 0,0,0);
+		efcMng_->PlayEffect();
 	}
-
-	UpdateEffekseer();
+	result = GetKeyboardState(lastState);
+	UpdateEffekseer(deltaTime * 60);
 	frame++;
 
 	// 板ポリ更新
 	mappedBoardBuffer_->time += deltaTime;
 	mappedBoardBuffer_->time = fmodf(mappedBoardBuffer_->time, 2);
 
-	
 	// リソースバリアを設定レンダーターゲットからシェーダ
 	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		rtTexture_.Get(),	// リソース
@@ -966,6 +979,8 @@ bool Dx12Wrapper::Update()
 	);
 	cmdList_->ResourceBarrier(1, &barrier);
 
+	
+
 	auto nowTime = GetTickCount64();
 	deltaTime = static_cast<float>(nowTime - oldTime) / 1000;
 	oldTime = static_cast<float>(nowTime);
@@ -985,7 +1000,7 @@ void Dx12Wrapper::DrawExcute()
 	cmdList_->Close();
 
 	ExecuteAndWait();
-	swapchain_->Present(1, 0);
+	swapchain_->Present(0, 0);
 }
 
 void Dx12Wrapper::ClearDrawScreen()

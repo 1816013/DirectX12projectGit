@@ -3,19 +3,15 @@
 [RootSignature(RS1)]
 float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
 {
-	//float2 bno = float2(input.boneNum % 2);
-	//float col = lerp(bno.x, bno.y, input.weight);
-	// lerp = A(1-t) + Btを行うもの]
-	//return float4(input.weight, 1, 1, 1);
-	//return float4(float2(input.boneNum / 128.0f), 0, 1);
-
 	float3 light = normalize(float3(-1, 1, 1));
 	float b = saturate(dot(input.norm.xyz, light));
 	float4 toonCol = toon.Sample(toonSmp, float2(0.0f,1.0f - b));
-
 	float3 eye = float3(0.0f, 10.5f, 30.0f);
-	float3 eray = normalize(eye - input.pos.xyz);
+	float3 eray = normalize(eye - input.pos.xyz);	// 視線
 	float3 lray = reflect(-light, input.norm.xyz);
+	// リムライト
+    float rim = saturate(1-dot(normalize(input.norm.xyz), normalize(eray)));
+    rim = pow(rim, 5);
 	// saturateは0~1にクランプするもの
 	// シェーダではノーコストである
 	float s = saturate(pow(saturate(dot(eray, lray)), speqular.a));
@@ -38,7 +34,7 @@ float4 PS(VsOutput input, uint instID:SV_InstanceID) : SV_TARGET
     //{
     //    bbias = 0.5f;
     //}
-    return float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) + speqular.rgb * s, diffuse.a)
+    return float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)

@@ -7,9 +7,7 @@
 #include <string>
 #include <d3dx12.h>
 #include <unordered_map>
-// Effekseer
-#include <Effekseer.h>
-#include <EffekseerRendererDX12.h>
+
 
 using Microsoft::WRL::ComPtr;
 
@@ -28,6 +26,7 @@ struct Size;
 struct Color;
 struct PMDBone;
 enum class ColTexType;
+class EffectManager;
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -187,7 +186,7 @@ private:
 	/// </summary>
 	void InitEffekseer();
 
-	void UpdateEffekseer();
+	void UpdateEffekseer(float frame);
 
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
@@ -256,11 +255,6 @@ private:
 
 	ComPtr<ID3D12DescriptorHeap>primitiveDescHeap_;
 
-	// Effekseer
-	EffekseerRenderer::Renderer* efkRenderer_;
-	Effekseer::Manager* efkManager_;
-	EffekseerRenderer::SingleFrameMemoryPool* efkSfMemoryPool_;
-	EffekseerRenderer::CommandList* efkCmdList_;
-	Effekseer::Effect* effect_;
-	Effekseer::Handle efkHandle_ = 0;
+	// エフェクト
+	std::shared_ptr<EffectManager>efcMng_;
 };
