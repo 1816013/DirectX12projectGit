@@ -14,7 +14,7 @@ VsOutput VS( float4 pos : POSITION ,float4 normal : NORMAL, float2 uv : TEXCOORD
     output.pos = pos;
     if (instID == 1)
     {
-        output.pos +=output.norm; // 3d‚ÌÀ•W
+        output.pos += output.norm; // 3d‚ÌÀ•W
     }
     output.pos = mul(mat, output.pos); // 3d‚ÌÀ•W
     pos = mul(viewproj, output.pos); // 2D‚É‰Ÿ‚µ‚Â‚Ô‚·

@@ -353,7 +353,7 @@ D3D12_INDEX_BUFFER_VIEW& PMDActor::GetIbView()
 	return ibView_;
 }
 
-bool PMDActor::CreateMaterialBufferView(std::vector<ComPtr<ID3D12Resource>>&defTexs)
+bool PMDActor::CreateMaterialBufferView()
 {
 	// マテリアルバッファの作成
 	HRESULT result = S_OK;

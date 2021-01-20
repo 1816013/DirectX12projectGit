@@ -202,6 +202,7 @@ private:
 	uint32_t bbIdx_;
 
 	// マルチパスレンダリング
+	float clearCol[4] = {0,0,0,0};
 	// ポストエフェクトレンダーターゲット用テクスチャ
 	ComPtr<ID3D12DescriptorHeap> firstRtvHeap_ = nullptr;	
 	ComPtr<ID3D12DescriptorHeap> firstSrvHeap_ = nullptr;

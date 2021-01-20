@@ -42,7 +42,7 @@ public:
 	/// マテリアルバッファビュー作成@デフォルトテクスチャをどうにかしたら変更
 	/// </summary>
 	/// <returns>true : 成功 false : 失敗</returns>
-	bool CreateMaterialBufferView(std::vector<ComPtr<ID3D12Resource>>&defTexs);
+	bool CreateMaterialBufferView();
 
 	/// <summary>
 	/// ボーンバッファ作成

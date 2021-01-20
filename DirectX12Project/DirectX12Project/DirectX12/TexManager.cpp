@@ -139,9 +139,11 @@ void TexManager::SetUploadTexure(ID3D12GraphicsCommandList* cmdList, D3D12_SUBRE
 	// 転送元
 	ComPtr<ID3D12Resource>intermediateBuff;	// 中間バッファ
 	auto buffSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
-	result = dev_->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+	auto buffHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto buffResDesc = CD3DX12_RESOURCE_DESC::Buffer(buffSize);
+	result = dev_->CreateCommittedResource(&buffHeapProp,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
+		&buffResDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(intermediateBuff.ReleaseAndGetAddressOf()));
@@ -153,8 +155,8 @@ void TexManager::SetUploadTexure(ID3D12GraphicsCommandList* cmdList, D3D12_SUBRE
 	// コマンドキュー待ちが必要
 	UpdateSubresources(cmdList, texture.Get(),
 		intermediateBuff.Get(), 0, 0, 1, &subResData);
-	cmdList->ResourceBarrier(1,
-		&CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	auto transition = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
+															D3D12_RESOURCE_STATE_COPY_DEST,
+															D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	cmdList->ResourceBarrier(1, &transition);
 }

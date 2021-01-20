@@ -40,12 +40,12 @@ PsOutput PS(VsOutput input, uint instID : SV_InstanceID)
     //{
     //    bbias = 0.5f;
     //}
-    output.color = float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
+    output.color = float4(max(ambient.rgb, /*toonCol.rgb **/ diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)
 		+ float4(texCol.rgb * ambient.rgb * 0.5, 1);
-    output.normal = float4(input.norm.xyz, 1);
-	
+    output.normal = float4(input.norm.xyz + 1.0f * 0.5f,  1);
+   
     return output;
 }

@@ -101,8 +101,8 @@ void PrimitiveManager::CreateRootSignature()
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV, // レンジタイプ t
 		1,// デスクリプタ数	t0～t0まで
 		0);// ベースレジスタ番号 t0	
-		   // ルートパラメータ
-		   // 座標変換
+
+	// ルートパラメータ
 	CD3DX12_ROOT_PARAMETER::InitAsDescriptorTable(
 		rp[0],	// ルートパラメータ
 		2,		// レンジ数

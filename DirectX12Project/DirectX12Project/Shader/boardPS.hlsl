@@ -1,11 +1,11 @@
 #include "boardCommon.hlsli"
 
 SamplerState smp:register(s0);
-Texture2D<float4>rtvTex:register(t0);	// 1パス目結果
-Texture2D<float4>distTex:register(t1);	// 画面歪み用ノーマルテクスチャ
-Texture2D<float>lightDepTex:register(t2);		// ライトから見た深度
+Texture2D<float4>rtvTex:register(t0);	    // 1パス目結果
+Texture2D<float4>distTex:register(t1);	    // 画面歪み用ノーマルテクスチャ
+Texture2D<float>lightDepTex:register(t2);   // ライトから見た深度
 Texture2D<float>depTex:register(t3);		// 1パス目深度
-Texture2D<float4>normalTex:register(t4);		// 1パス目法線
+Texture2D<float4>normalTex:register(t4);	// 1パス目法線
 
 cbuffer Const:register(b0)
 {
@@ -22,42 +22,42 @@ float4 PS(BoardOutput input) : SV_TARGET
  	
     if (input.uv.x < 0.25f && input.uv.y < 0.25f)
     {
-        float b = lightDepTex.Sample(smp, input.uv * 4.0);
+        float b = lightDepTex.Sample(smp, input.uv * 4.0f);
        // b = pow(b, 100);
         return float4(b, b, b, 1);
     }
     if (input.uv.x < 0.25f && input.uv.y < 0.5f)
     {
-        float bright = depTex.Sample(smp, input.uv * 4.0);
+        float bright = depTex.Sample(smp, input.uv * 4.0f);
         bright = pow(abs(bright), 100.0f);
-        return float4(bright, bright, bright, 1);
+        return float4(bright, bright, bright, 1.0f);
     }
     if (input.uv.x < 0.25f && input.uv.y < 0.75f)
     {
-        float4 normal = normalTex.Sample(smp, input.uv * 4.0 - float2(0,2));
+        float4 normal = normalTex.Sample(smp, input.uv * 4.0f - float2(0,2.0f));
         return normal;
     }
+	
+	// ラプシディアンフィルタ輪郭線
     float3 normal = normalTex.Sample(smp, input.uv).rgb;
-    //return float4(normal, 1);
-    //bright = pow(abs(bright), 100.0f);
+	//return float4(normal, 1);
     normal *= 4.0;
     normal -= normalTex.Sample(smp, input.uv + float2(0, dt.y)).rgb;
     normal -= normalTex.Sample(smp, input.uv + float2(0, -dt.y)).rgb;
     normal -= normalTex.Sample(smp, input.uv + float2(dt.x, 0)).rgb;
     normal -= normalTex.Sample(smp, input.uv + float2(-dt.x, 0)).rgb;
-    float dtstp = dot(normal, float3(1,1,1));
-    dtstp = step(normal, 0.0001);
+    float dtstp /*= dot(float3(1,1,1), normal)*/;
+    dtstp = step((normal.r * normal.g * normal.b), 0.001f);
     float bright = depTex.Sample(smp, input.uv);
-    //bright = pow(abs(bright), 100.0f);
+    ////bright = pow(abs(bright), 100.0f);
     bright *= 4.0;
     bright -= depTex.Sample(smp, input.uv + float2(0, dt.y));
     bright -= depTex.Sample(smp, input.uv + float2(0, -dt.y));
-    bright -= depTex.Sample(smp, input.uv + float2(dt.x,0));
+    bright -= depTex.Sample(smp, input.uv + float2(dt.x, 0));
     bright -= depTex.Sample(smp, input.uv + float2(-dt.x, 0));
-    bright = step(bright, 0.0001);
-	
-  //  bright = saturate(bright * dtstp);
-   // return float4(bright, bright, bright, 1);
+    bright = saturate(step(bright, 0.0001f));
+	bright = saturate(bright * dtstp);
+	// return float4(bright, bright, bright, 1);
 	
 	float2 nUV = input.uv - 0.5f;
 	nUV /=time;
@@ -70,16 +70,10 @@ float4 PS(BoardOutput input) : SV_TARGET
 	//nUV = nUV * 2.0f - 1.0f;
 	//return nTex;
 	
-	// 輪郭線表示
-	//  float4 ret = float4(0, 0, 0, 0);
-	//  ret = (rtvTex.Sample(smp, input.uv) * 4 +
-	//rtvTex.Sample(smp, input.uv + float2(0, dt.y)) * -1 +
-	//rtvTex.Sample(smp, input.uv + float2(0, -dt.y)) * -1 +
-	//rtvTex.Sample(smp, input.uv + float2(dt.x, 0)) * -1 +
-	//rtvTex.Sample(smp, input.uv + float2(-dt.x, 0)) * -1);
-	//  float b = dot(float3(0.298912f, 0.586611f, 0.114478f), 1 - ret.rgb);
-	// return float4(b, b, b, org.a);
-	
+	// ディファードレンダリング用
+    float3 nml = (normalTex.Sample(smp, input.uv).rgb * 2.0f - 1.0f);
+    float3 light = normalize(float3(-1, 1, 1));
+    float b = dot(nml, light);
     if (org.a > 0.0f)
 	{
         return float4(org.rgb * bright, org.a);
@@ -106,12 +100,9 @@ float4 PS(BoardOutput input) : SV_TARGET
 		//float div = 1.0f / 128.0f;
 		//float2 aspect = float2(1.0f, w / h);
 		////float2 iuv = (input.uv * 0.2) + float2(0.4,0.2);	// 拡大
-		//float4 dest = float4(fmod(input.uv / aspect, div) / div, 1, 1);
-  //      
+		//float4 dest = float4(fmod(input.uv / aspect, div) / div, 1, 1);      
     }
-	//float4 col = rtvTex.Sample(smp, input.uv);
-  //  float4 ret = float4(0, 0, 0, 0);
-//	return ret;
+
 	// 輪郭線表示
 	/*ret =(rtvTex.Sample(smp, input.uv)* 4 +
 		rtvTex.Sample(smp, input.uv + float2(0, dt.y)) * -1 +
@@ -120,7 +111,6 @@ float4 PS(BoardOutput input) : SV_TARGET
 		rtvTex.Sample(smp, input.uv + float2(-dt.x, 0))* -1);
 	float b = dot(float3(0.298912f, 0.586611f, 0.114478f),1- ret.rgb);
 	b = step(0.8, b);
-
 	return float4(b,b,b, col.a);*/
 	// エンボス
 	/*(rtvTex.Sample(smp, input.uv) +

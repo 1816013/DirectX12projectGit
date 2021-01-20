@@ -19,16 +19,15 @@ PsOutput PrimitivePS(PrimOut input)
     PsOutput output;
     // ライトから見た座標は-1～1に正規化されるためuv値に利用できる
     float2 uv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
-   
+    output.normal = float4(0, 1, 0, 1);
     if (input.lvpos.z > lightDepthTex.Sample(smp, uv))
     {
         output.color = float4(0.5, 0.5, 0.5, 1);
 
         return output;
-
     }
     output.color = float4(1, 1, 1, 1);
-    output.normal = float4(0, 1, 0, 1);
+   
     //float4 b = lightDepthTex.Sample(smp, uv);
     return output;
 }
