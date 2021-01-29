@@ -3,6 +3,7 @@ struct PsOutput
 {
     float4 color : SV_TARGET0; 
     float4 normal : SV_TARGET1;
+    float4 hdr : SV_TARGET2;
 };
 
 [RootSignature(RS1)]
@@ -34,18 +35,22 @@ PsOutput PS(VsOutput input, uint instID : SV_InstanceID)
     float sCol = 0.5f;	// ‰eF
     float epsilon = 0.0005f;
     float2 suv = (input.lvpos.xy + float2(1, -1)) * float2(0.5, -0.5);
-    float threshold = shadowTex.SampleCmpLevelZero(shadowCmpSmp, suv, input.lvpos.z - epsilon);
-    bbias = lerp(sCol, 1.0f, threshold);
+    //float threshold = shadowTex.SampleCmpLevelZero(shadowCmpSmp, suv, input.lvpos.z - epsilon);
+    //bbias = lerp(sCol, 1.0f, threshold);
     //if (input.lvpos.z > shadowTex.Sample(smp, suv)+ epsilon)
     //{
     //    bbias = 0.5f;
     //}
-    output.color = float4(max(ambient.rgb, /*toonCol.rgb **/ diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
+    output.color = float4(max(ambient.rgb, toonCol.rgb * diffuse.rgb * bbias) /** step(rim, 0.1f)*/ + speqular.rgb * s, diffuse.a)
 		* texCol
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)
-		+ float4(texCol.rgb * ambient.rgb * 0.5, 1);
+		/*+ float4(texCol.rgb * ambient.rgb * 0.5, 1)*/;
     output.normal = float4(input.norm.xyz + 1.0f * 0.5f,  1);
-   
+	
+	
+   // output.hdr = output.color;
+      output.hdr = step(0.8f,output.color);
+    //output.hdr =  step(1.5f, s + b);
     return output;
 }

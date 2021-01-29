@@ -185,9 +185,10 @@ bool Renderer::CreatePipelineState(ID3D12Device& dev)
 	plsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 	// èoóÕê›íË
-	plsDesc.NumRenderTargets = 2;
+	plsDesc.NumRenderTargets = 3;
 	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	plsDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	plsDesc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// ÉuÉåÉìÉh
 	plsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);

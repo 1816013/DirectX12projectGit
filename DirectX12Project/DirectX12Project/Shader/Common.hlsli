@@ -15,6 +15,7 @@ cbuffer Transform:register(b0)
 	matrix viewproj;	// カメラ行列
 	matrix shadowMat;	// 影
     matrix lightVP;
+    matrix trans[25];
 	float4 lightPos;	// ライト座標
 }
 

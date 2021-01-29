@@ -17,6 +17,7 @@ struct BasicMatrix
 	DirectX::XMMATRIX viewproj;	// ビュープロジェクション(カメラ)
 	DirectX::XMMATRIX shadow;	// 影
 	DirectX::XMMATRIX lightVP;	// ビュープロジェクション(光源)
+	DirectX::XMMATRIX trans[25];	// 25体インスタンシング用
 	DirectX::XMVECTOR lightPos;	// 光源座標
 };
 class PMDLoder;
@@ -24,10 +25,12 @@ class PMDResource;
 class VMDLoder;
 struct PMDBone;
 class TexManager;
+class Camera;
 class PMDActor
 {
 public:
-	PMDActor(ComPtr<ID3D12Device>& dev, const char* path, DirectX::XMFLOAT3 pos);
+	PMDActor(ComPtr<ID3D12Device>& dev, const char* path, DirectX::XMFLOAT3 pos, Camera& camera);
+	~PMDActor();
 	void CreatePMDModelTexture();
 	PMDLoder& GetPMDModel();
 	PMDResource& GetPMDResource();
@@ -161,4 +164,5 @@ private:
 	float angle_;
 
 	float frame_;
+	Camera* camera_;
 };

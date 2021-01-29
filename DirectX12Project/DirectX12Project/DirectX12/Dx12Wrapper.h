@@ -14,20 +14,18 @@ using Microsoft::WRL::ComPtr;
 
 struct BoardConstBuffer
 {
+	DirectX::XMMATRIX proj; // プロジェクション(3D→2D)
+	DirectX::XMMATRIX invProj; // 逆プロジェクション(2D→3D)
 	DirectX::XMFLOAT2 pos;
 	float time;
 };
 
 class PMDActor;
 class Renderer;
-class TexManager;
 class PrimitiveManager;
 struct BasicMatrix;
-struct Size;
-struct Color;
-struct PMDBone;
-enum class ColTexType;
 class EffectManager;
+class CameraCtr;
 /// <summary>
 /// DirectX12の初期化等の煩雑なところをまとめたクラス
 /// </summary>
@@ -167,6 +165,12 @@ private:
 	/// <param name="mat"></param>
 	void DrawShadow(BasicMatrix& mat);
 
+
+	bool CreateSSAOPipeLine();
+	void DrawAmbientOcclusion();
+
+	HWND hwnd_;
+
 	ComPtr<ID3D12Device> dev_ = nullptr;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator_ = nullptr;
 	ComPtr<ID3D12GraphicsCommandList> cmdList_ = nullptr;
@@ -186,7 +190,7 @@ private:
 	D3D12_RECT scissorRect_ = {};
 
 	// デフォルトテクスチャ
-	std::vector<ComPtr<ID3D12Resource>>defTextures_;
+	//std::vector<ComPtr<ID3D12Resource>>defTextures_;
 
 	// テクスチャリソース
 	//std::shared_ptr<TexManager> texManager_;
@@ -201,13 +205,23 @@ private:
 	// バックバッファインデックス
 	uint32_t bbIdx_;
 
+	float clearCol[4] = { 0,0,0,0 };
 	// マルチパスレンダリング
-	float clearCol[4] = {0,0,0,0};
-	// ポストエフェクトレンダーターゲット用テクスチャ
+	// ポストエフェクトレンダーターゲット用ディスクリプタヒープ
 	ComPtr<ID3D12DescriptorHeap> firstRtvHeap_ = nullptr;	
 	ComPtr<ID3D12DescriptorHeap> firstSrvHeap_ = nullptr;
 	//ポストエフェクト用テクスチャ
-	std::array<ComPtr<ID3D12Resource>,2> rtTextures_;	// 0:描画用,1:法線 
+	std::array<ComPtr<ID3D12Resource>,3> rtTextures_;	// 0:描画用,1:法線 , 2:高輝度(hdr)
+
+	// 通常の幅が半分になったバッファ
+	ComPtr<ID3D12PipelineState> shrinkPipeLine_ = nullptr;
+	ComPtr<ID3D12Resource> rtShrinkForBloom_;	// 縮小バッファ(ブルームぼかし用)
+	ComPtr<ID3D12Resource> rtShrinkForDof_;	// 縮小バッファ(被写界深度用)
+
+	// アンビエントオクルージョン(SSAO)
+	ComPtr<ID3D12Resource>ssaoBuffer_;
+	ComPtr<ID3D12PipelineState> ssaoPipeline_;
+
 
 	// 板ポリ頂点
 	// TRIANGLE_STRIPで作る
@@ -215,8 +229,7 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW boardVBView_;
 	ComPtr<ID3D12PipelineState> boardPipeLine_ = nullptr;
 	ComPtr<ID3D12RootSignature> boardSig_ = nullptr;
-	// 時間用
-	float oldTime = 0;
+	
 
 	// ノーマルマップ用
 	ComPtr<ID3D12Resource> normalMapTex_ = nullptr;
@@ -236,4 +249,10 @@ private:
 
 	// エフェクト
 	std::shared_ptr<EffectManager>efcMng_;
+
+	// カメラ　
+	std::unique_ptr<CameraCtr>cameraCtr_;
+
+	// 時間用
+	float oldTime = 0;
 };

@@ -25,9 +25,9 @@ void PMDResource::CreateResouses(const std::vector<GroopType>& groopTypes)
 			break;
 		}
 		int resIdx = 0;
-		auto buffers = res_[static_cast<int>(gType)].resources_;
+		auto& buffers = res_[static_cast<int>(gType)].resources_;
 		//ディスクリプタヒープ
-		auto buffType = res_[static_cast<int>(gType)].types_;
+		auto& buffType = res_[static_cast<int>(gType)].types_;
 		ComPtr<ID3D12DescriptorHeap> descHeap;
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};

@@ -39,9 +39,6 @@
     <ClCompile Include="PMDLoder\PMDLoder.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX12\cameraCtr.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="PMDLoder\VMDLoder.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -61,6 +58,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX12\Effect\EffectManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\Camera\cameraCtr.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX12\Camera\Camera.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -89,9 +92,6 @@
     <ClInclude Include="PMDLoder\PMDLoder.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX12\cameraCtr.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="PMDLoder\VMDLoder.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -113,6 +113,12 @@
     <ClInclude Include="DirectX12\Effect\EffectManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX12\Camera\cameraCtr.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12\Camera\Camera.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\vs.hlsl" />
@@ -123,6 +129,7 @@
     <FxCompile Include="Shader\ShadowVS.hlsl" />
     <FxCompile Include="Shader\PrimitiveVS.hlsl" />
     <FxCompile Include="Shader\PrimitivePS.hlsl" />
+    <FxCompile Include="Shader\SsaoPS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Common.hlsli" />

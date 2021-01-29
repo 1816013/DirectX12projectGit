@@ -12,6 +12,7 @@ struct PsOutput
 {
     float4 color : SV_TARGET0;
     float4 normal : SV_TARGET1;
+    float4 hdr : SV_TARGET2;
 };
 
 PsOutput PrimitivePS(PrimOut input)
@@ -23,10 +24,12 @@ PsOutput PrimitivePS(PrimOut input)
     if (input.lvpos.z > lightDepthTex.Sample(smp, uv))
     {
         output.color = float4(0.5, 0.5, 0.5, 1);
-
+        output.hdr = output.color;
         return output;
     }
-    output.color = float4(1, 1, 1, 1);
+    output.color = float4(uv, 1, 1);
+    
+    output.hdr = output.color;
    
     //float4 b = lightDepthTex.Sample(smp, uv);
     return output;

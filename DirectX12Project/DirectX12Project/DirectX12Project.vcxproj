@@ -160,7 +160,8 @@
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BMPLoder\BmpLoder.cpp" />
-    <ClCompile Include="DirectX12\cameraCtr.cpp" />
+    <ClCompile Include="DirectX12\Camera\Camera.cpp" />
+    <ClCompile Include="DirectX12\Camera\cameraCtr.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="DirectX12\Effect\EffectManager.cpp" />
     <ClCompile Include="main.cpp" />
@@ -178,7 +179,8 @@
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="BMPLoder\BmpLoder.h" />
-    <ClInclude Include="DirectX12\cameraCtr.h" />
+    <ClInclude Include="DirectX12\Camera\Camera.h" />
+    <ClInclude Include="DirectX12\Camera\cameraCtr.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="DirectX12\Dx12Wrapper.h" />
     <ClInclude Include="DirectX12\PMDActor.h" />
@@ -261,6 +263,15 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ShadowVS</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ShadowVS</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="Shader\SsaoPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">SsaoPS</EntryPointName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">SsaoPS</EntryPointName>
     </FxCompile>
     <FxCompile Include="Shader\vs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>

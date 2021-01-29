@@ -8,6 +8,7 @@
 #include "TexManager.h"
 #include "../Application.h"
 #include "../PMDLoder/VMDLoder.h"
+#include "Camera/Camera.h"
 using namespace DirectX;
 using namespace std;
 
@@ -16,7 +17,7 @@ namespace
 	string texTable[] = { "bmp", "spa", "sph", "toon" };
 }
 
-PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos) : dev_(dev)
+PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos, Camera& camera) : dev_(dev)
 {
 	pos_ = pos;
 	//texManager_ = make_shared<TexManager>(*dev.Get());
@@ -28,6 +29,12 @@ PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos) : 
 	CreateVertexBufferView();
 	CreateIndexBufferView();
 	frame_ = 0.0f;
+	camera_ = &camera;
+}
+
+PMDActor::~PMDActor()
+{
+
 }
 
 void PMDActor::CreatePMDModelTexture()
@@ -36,7 +43,7 @@ void PMDActor::CreatePMDModelTexture()
 	auto& paths = pmdModel_->GetTexturePaths();
 	auto& toonPaths = pmdModel_->GetToonPaths();
 	auto& texManager = TexManager::GetInstance();
-	for (auto tex : texTable)
+	for (auto& tex : texTable)
 	{
 		if (textures_[tex].size() == 0)
 		{
@@ -71,7 +78,7 @@ void PMDActor::CreatePMDModelTexture()
 		}
 
 		auto pathVec = StrOperater::SplitFileName(paths[i]);
-		for (auto path : pathVec)
+		for (auto& path : pathVec)
 		{
 			auto ext = StrOperater::GetExtension(path);
 			if (ext != "spa" && ext != "sph")
@@ -135,7 +142,7 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 
 	
 	// マテリアル&テクスチャヒープセット
-	auto material = GetPMDModel().GetMaterialData();
+	auto& material = GetPMDModel().GetMaterialData();
 	uint32_t indexOffset = 0;
 	auto matHeap = pmdResource_->GetGroops(GroopType::MATERIAL).descHeap_.Get();
 	ID3D12DescriptorHeap* matDeskHeaps[] = { matHeap };
@@ -150,7 +157,7 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 
 		cmdList->DrawIndexedInstanced(
 			indexNum,		// インデックス数
-			1,				// インスタンス数
+			25,				// インスタンス数
 			indexOffset,	// インデックスオフセット
 			0,				// 頂点オフセット
 			0);				// インスタンスオフセット
@@ -262,6 +269,17 @@ bool PMDActor::CreateTransformBuffer()
 
 	XMMATRIX world = XMMatrixIdentity();
 
+
+	XMMATRIX trans[25] = {};
+	for (int z = 0; z < 5; ++z)
+	{
+		for (int x = 0; x < 5; ++x)
+		{
+			trans[x + z * 5] = XMMatrixRotationY(XM_PI);
+			trans[x + z * 5] *= XMMatrixTranslation(x * 6.0f, 0, -z * 6.0f);
+		}
+	}
+
 	// 2D表示
 	//tmpMat.r[0].m128_f32[0] = 1.0f / (static_cast<float>(wSize.width) / 2.0f);
 	//tmpMat.r[1].m128_f32[1] = -1.0f / (static_cast<float>(wSize.height) / 2.0f);
@@ -275,16 +293,16 @@ bool PMDActor::CreateTransformBuffer()
 	world *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
 
 	// カメラ行列(ビュー行列)
-	XMMATRIX view = XMMatrixLookAtRH(
+	XMMATRIX view = camera_->GetCameaView();/*XMMatrixLookAtRH(
 		{ 0.0f, 10.0f, 30.0f, 1.0f },	// 視点
 		{ 0.0f, 10.0f, 0.0f, 1.0f },		// 注視店
-		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)
+		{ 0.0f, 1.0f, 0.0f,1.0f });		// 上(仮の上)*/
 
-	// プロジェクション行列(パースペクティブ行列or射影行列)
-	XMMATRIX proj = XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
-		static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
-		0.1f,	// ニア(近い)
-		1000.0f);	//　ファー(遠い)
+		// プロジェクション行列(パースペクティブ行列or射影行列)
+		XMMATRIX proj = camera_->GetCameaProj();//XMMatrixPerspectiveFovRH(XM_PIDIV4, // 画角(FOV)
+	//	static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+	//	0.1f,	// ニア(近い)
+	//	1000.0f);	//　ファー(遠い)
 
 	mappedBasicMatrix_ = make_shared<BasicMatrix>();
 	// 後でいじるために開けっ放しにしておく
@@ -293,6 +311,10 @@ bool PMDActor::CreateTransformBuffer()
 	mappedBasicMatrix_->viewproj = view * proj;
 
 	mappedBasicMatrix_->world = world;
+	for (int i = 0; i < 25; ++i)
+	{
+		mappedBasicMatrix_->trans[i] = trans[i];
+	}
 	XMVECTOR plane = { 0,1,0,-0.01f };		// 平面方程式
 	XMVECTOR light = { -1,1,1,0 };		// 光源行列
 	mappedBasicMatrix_->lightPos = light;
@@ -330,11 +352,25 @@ void PMDActor::Update(float delta)
 	mappedBasicMatrix_->world *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
 	mappedBasicMatrix_->world *= XMMatrixTranslation(0, 0, move);
 
+	mappedBasicMatrix_->viewproj = camera_->GetCameaView() * camera_->GetCameaProj();
+
+	for (int z = 0; z < 5; ++z)
+	{
+		for (int x = 0; x < 5; ++x)
+		{
+			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixTranslation(-pos_.x, -pos_.y, -pos_.z);
+			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixRotationY(angle_);
+			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
+
+			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixTranslation(0, 0, move);
+		}
+	}
+
 	XMVECTOR plane = { 0.0f,1.0f,0.0f,-0.01f };		// 平面方程式
 	XMVECTOR light = { -1.0f,1.0f,1.0f,0.0f };		// 光源行列
 	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
 	frame_ += delta * 30;
-	//UpdateBones(static_cast<int>(fmodf(frame_, vmdMotion_->GetVMDData().duration)));
+	UpdateBones(static_cast<int>(fmodf(frame_, vmdMotion_->GetVMDData().duration)));
 	
 }
 
@@ -384,7 +420,7 @@ bool PMDActor::CreateMaterialBufferView()
 
 		transResBind.AddBuffers(materialBuffer_.Get(), strideBytes);
 		mappedMaterial += strideBytes;
-		for (auto texpair : texPairList)
+		for (auto& texpair : texPairList)
 		{
 			ID3D12Resource* res = textures_[texpair.first][i].Get();
 			if (res == nullptr)
