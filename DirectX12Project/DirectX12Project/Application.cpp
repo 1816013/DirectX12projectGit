@@ -1,12 +1,15 @@
 #include "Application.h"
 #include <iostream>
 #include "DirectX12/Dx12Wrapper.h"
+#include "imgui/imgui_impl_win32.h"
 
 using namespace std;
 
 constexpr auto className = L"DirectXtest";
 constexpr int WINDOW_WIDTH = 1280;
 constexpr int WINDOW_HIGHT = 720;
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -15,6 +18,7 @@ LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		PostQuitMessage(0);
 		return 0;
 	}
+	ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 

@@ -13,7 +13,9 @@
 #include "Effect/EffectManager.h"
 #include "Camera/cameraCtr.h"
 #include "Camera/Camera.h"
-
+#include "../imgui/imgui.h"
+#include "../imgui/imgui_impl_win32.h"
+#include "../imgui/imgui_impl_dx12.h"
 //#include "../BMPLoder/BmpLoder.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -831,6 +833,19 @@ bool Dx12Wrapper::CreateSSAOPipeLine()
 	return false;
 }
 
+ComPtr<ID3D12DescriptorHeap> Dx12Wrapper::CreateImguiDescriptorHeap()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	auto result = dev_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(imguiHeap_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+
+	return imguiHeap_;
+}
+
 Dx12Wrapper::Dx12Wrapper()
 {
 	
@@ -881,6 +896,27 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	CreateSwapChain(hwnd);
 	
 	CreateFence();
+
+	CreateImguiDescriptorHeap();
+
+	if (ImGui::CreateContext() == nullptr)
+	{
+		assert(false);
+	}
+
+	if (!ImGui_ImplWin32_Init(hwnd))
+	{
+		assert(false);
+	}
+	if (!ImGui_ImplDX12_Init(dev_.Get(),
+		3,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		imguiHeap_.Get(),
+		imguiHeap_->GetCPUDescriptorHandleForHeapStart(),
+		imguiHeap_->GetGPUDescriptorHandleForHeapStart()))
+	{
+		assert(false);
+	}
 
 	cameraCtr_ = make_unique<CameraCtr>();
 
@@ -1178,6 +1214,25 @@ bool Dx12Wrapper::Update()
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,	// 前ターゲット		
 		D3D12_RESOURCE_STATE_RENDER_TARGET// 後ろターゲット
 	);
+
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	ImGui::Begin("RenderingtestMenu");
+
+	static ImVec2 imSize = ImVec2(100, 100);
+	ImGui::SetWindowSize(imSize);
+	float col[3];
+	ImGui::ColorPicker3("col3", col);
+	imSize = ImGui::GetWindowSize();
+
+
+	ImGui::End();
+	ImGui::Render();
+
+	cmdList_->SetDescriptorHeaps(1, imguiHeap_.GetAddressOf());
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList_.Get());
+
 	cmdList_->ResourceBarrier(1, &barrier);
 	// リソースバリアを設定シェーダからレンダーターゲット
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(

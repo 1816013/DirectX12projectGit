@@ -169,6 +169,8 @@ private:
 	bool CreateSSAOPipeLine();
 	void DrawAmbientOcclusion();
 
+	ComPtr<ID3D12DescriptorHeap> CreateImguiDescriptorHeap();
+
 	HWND hwnd_;
 
 	ComPtr<ID3D12Device> dev_ = nullptr;
@@ -252,6 +254,10 @@ private:
 
 	// カメラ　
 	std::unique_ptr<CameraCtr>cameraCtr_;
+
+	// imgui関連
+	ComPtr<ID3D12DescriptorHeap>imguiHeap_;
+
 
 	// 時間用
 	float oldTime = 0;
