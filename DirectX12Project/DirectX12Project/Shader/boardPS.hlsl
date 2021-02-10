@@ -96,6 +96,90 @@ float4 DistortionByNormalTex(float2 uv)
 	return nTex;
 }
 
+float3 mod(float3 pos, float divider)
+{
+    return pos - divider * floor(pos / divider);
+}
+
+float3 rotate(float3 p, float angle, float3 axis)
+{
+    float3 a = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float r = 1.0 - c;
+    float3x3 m = float3x3(
+                    a.x * a.x * r + c,
+                    a.y * a.x * r + a.z * s,
+                    a.z * a.x * r - a.y * s,
+                    a.x * a.y * r - a.z * s,
+                    a.y * a.y * r + c,
+                    a.z * a.y * r + a.x * s,
+                    a.x * a.z * r + a.y * s,
+                    a.y * a.z * r - a.x * s,
+                    a.z * a.z * r + c
+                    );
+    return mul(m, p);
+}
+
+
+float SDFCircle2D(float2 xy, float2 center, float r, float2 aspect)
+{
+    return length((center - xy)* aspect) - r;
+}
+
+float SDFLatticeCircle2D(float2 xy, float2 aspect, float divNum)
+{
+    float div = 1.0f / divNum;
+    return length(fmod(xy * aspect, div) - div * 0.5) - div * 0.5f;
+}
+float SDFSphere(float3 pos,float3 center, float r)
+{
+    return length(pos - center) - r;
+}
+float SDFLatticeSphere(float3 pos, float r, float divider, out float normal)
+{
+    float3 tmp = mod(pos, divider) - divider * 0.5f;
+    normal = normalize(tmp) /** float3(1, 1, -1)*/;
+    return length(tmp) - r;
+    //float3 q = fmod(abs(pos) + 0.5f * divider, divider) - 0.5f * divider;
+    //normal = normalize(q);
+    //return SDFSphere(q, float3(0, 0, 0), r);
+}
+
+float SDFRoundBox(float3 pos, float b, float r)
+{
+   float3 q = abs(pos) - b;
+   return length(max(q, 0.0f) + min(max(q.x ,max(q.y, q.z)), 0.0f)) - r;
+
+}
+float SDFLatticeRoundBox(float3 pos,float b, float r, float divider)
+{
+    float3 tmp = mod(pos, divider) - divider * 0.5f;
+    tmp = rotate(tmp, time, float3(1, 1, 0));
+    return SDFRoundBox(tmp, b, r);
+}
+float SDFRoundBox2(float3 pos, float3 b, float r)
+{
+    float3 pp = mod(pos, 2) - 0.5f * 2;
+    float3 q = abs(pp) - b;
+    return length(max(q, 0.0f) + min(max(q.x, max(q.y, q.z)), 0.0f)) - r;
+}
+
+float3 NormalRoundBox(float3 pos,float b, float r, float epsilon)
+{
+    float3 epsX = float3(epsilon, 0, 0);
+    float3 epsY = float3(0, epsilon, 0);
+    float3 epsZ = float3(0, 0, epsilon);
+                
+    float3 n = float3(
+                SDFLatticeRoundBox(pos + epsX, b, r, 2) -
+                SDFLatticeRoundBox(pos - epsX, b, r, 2),
+                SDFLatticeRoundBox(pos + epsY, b, r, 2) -
+                SDFLatticeRoundBox(pos - epsY, b, r, 2),
+                SDFLatticeRoundBox(pos + epsZ, b, r, 2) -
+                SDFLatticeRoundBox(pos - epsZ, b, r, 2));
+   return normalize(n);
+}
 
 float4 PS(BoardOutput input) : SV_TARGET
 {
@@ -126,16 +210,16 @@ float4 PS(BoardOutput input) : SV_TARGET
         float4 hdr = hdrTex.Sample(smp, input.uv * 4.0f - float2(0, 3.0f));
         return hdr;
     } 
-    //if (input.uv.x < 0.125f && input.uv.y < 1.0f)
-    //{
-    //    float4 shrink = hdrShrinkTex.Sample(smp, input.uv * (8.0f * float2(1, 0.5f)));
-    //    return shrink;
-    //}
-    if (input.uv.x < 0.25f && input.uv.y < 1.0f)
+    if (input.uv.x < 0.125f && input.uv.y < 1.0f)
     {
-        float ssao = ssaoTex.Sample(smp, input.uv * 4.0f - float2(0, 3.0f));
-        return float4(ssao, ssao, ssao, 1);
+        float4 shrink = hdrShrinkTex.Sample(smp, input.uv * (8.0f * float2(1, 0.5f)));
+        return shrink;
     }
+    //if (input.uv.x < 0.25f && input.uv.y < 1.0f)
+    //{
+    //    float ssao = ssaoTex.Sample(smp, input.uv * 4.0f - float2(0, 3.0f));
+    //    return float4(ssao, ssao, ssao, 1);
+    //}
     //return DistortionByNormalTex(clickPos);
     
 	// ラプシディアンフィルタ輪郭線
@@ -146,30 +230,33 @@ float4 PS(BoardOutput input) : SV_TARGET
     normal -= normalTex.Sample(smp, input.uv + float2(0, -dt.y)).rgb;
     normal -= normalTex.Sample(smp, input.uv + float2(dt.x, 0)).rgb;
     normal -= normalTex.Sample(smp, input.uv + float2(-dt.x, 0)).rgb;
-    float dtstp /*= dot(float3(1,1,1), normal)*/;
-    dtstp = step((normal.r * normal.g * normal.b), 0.001f);
-    float bright = depTex.Sample(smp, input.uv);
-    ////bright = pow(abs(bright), 100.0f);
-    bright *= 4.0;
-    bright -= depTex.Sample(smp, input.uv + float2(0, dt.y));
-    bright -= depTex.Sample(smp, input.uv + float2(0, -dt.y));
-    bright -= depTex.Sample(smp, input.uv + float2(dt.x, 0));
-    bright -= depTex.Sample(smp, input.uv + float2(-dt.x, 0));
-    bright = saturate(step(bright, 0.0001f));
-	bright = saturate(bright * dtstp);
+    float outline = outLineN ? step((normal.r * normal.g * normal.b), 0.001f) : 1.0f;
+    
+    float dOutline = depTex.Sample(smp, input.uv);
+    dOutline *= 4.0;
+    dOutline -= depTex.Sample(smp, input.uv + float2(0, dt.y));
+    dOutline -= depTex.Sample(smp, input.uv + float2(0, -dt.y));
+    dOutline -= depTex.Sample(smp, input.uv + float2(dt.x, 0));
+    dOutline -= depTex.Sample(smp, input.uv + float2(-dt.x, 0));
+    dOutline = outLineD ?saturate(step(dOutline, 0.0001f)):1.0f;
+    float bright = saturate(dOutline * outline);
 	// return float4(bright, bright, bright, 1);
 	
     float4 org = rtvTex.Sample(smp, input.uv);
-    //org += Blur5x5(hdrTex, input.uv, float2(1.0f, 1.0f), float4(0.0f, 0.0f, 1.0f, 1.0f));
-    float2 uvRate = float2(1.0f, 0.5f);
-    float2 uvOffset = float2(0.0f, 0.0f);
-    // ブルーム用
-    //for (int i = 0; i < 8; ++i)
-    //{
-    //    org += Blur5x5(shrinkTex, uvOffset + input.uv * uvRate, float2(1.0f, 0.5f), float4(uvOffset, uvRate));
-    //    uvOffset.y += uvRate.y;
-    //    uvRate *= 0.5f;
-    //}
+    // ブルーム
+    if (bloomActive)
+    {
+    
+        org += Blur5x5(hdrTex, input.uv, float2(1.0f, 1.0f), float4(0.0f, 0.0f, 1.0f, 1.0f))* float4(bloomCol, 1);
+        float2 uvRate = float2(1.0f, 0.5f);
+        float2 uvOffset = float2(0.0f, 0.0f);
+        for (int i = 0; i < 7; ++i)
+        {
+            org += Blur5x5(hdrShrinkTex, uvOffset + input.uv * uvRate, float2(1.0f, 0.5f), float4(uvOffset, uvRate))* float4(bloomCol, 1);
+            uvOffset.y += uvRate.y;
+            uvRate *= 0.5f;
+        }
+    }
     
     float depForDof = depTex.Sample(smp, clickPos);
     
@@ -178,71 +265,112 @@ float4 PS(BoardOutput input) : SV_TARGET
     //float3 light = normalize(float3(-1, 1, 1));
     //float b = dot(nml, light);
     
-    float ssao = ssaoTex.Sample(smp, input.uv);
-    if (org.a > 0.0f)
-	{
-        //float depDiff = distance(depForDof, depTex.Sample(smp, input.uv));
-        //if (depDiff < 0.0001f)
-        //{
-        //    return float4(org.rgb /** bright*/, org.a);
-        //}
-        //else
-        //{
-        //    float blendRate[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float ssao = ssaoActive? ssaoTex.Sample(smp, input.uv):1.0f;
+    if (org.a > 0.1f)
+    {
+        float depDiff = distance(depForDof, depTex.Sample(smp, input.uv));
+        if (depDiff < 0.001f || !dofActive)
+        {
+            return float4(org.rgb * ssao * bright, org.a);
+        }
+        else
+        {
+            float blendRate[8] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
             
-        //    float t = saturate(depDiff * 200.0f) * 8.0f;
-        //    uint no = 0;
-        //    t = modf(t, no);
+            float t = saturate(depDiff * 200.0f) * 8.0f;
+            uint no = 0;
+            t = modf(t, no);
             
-        //    if (no > 0)
-        //    {
-        //        blendRate[no] = t;
-        //        blendRate[no - 1] = (1.0f - t);
-        //    }
-        //    else
-        //    {
-        //        blendRate[0] = 1.0f;
-        //    }
+            if (no > 0)
+            {
+                blendRate[no] = t;
+                blendRate[no - 1] = (1.0f - t);
+            }
+            else
+            {
+                blendRate[0] = 1.0f;
+            }
             
            
-        //    float2 uvRate = float2(1.0f, 0.5f);
-        //    float2 uvOffset = float2(0.0f, 0.0f);
-        //    float4 dof = org * blendRate[0];
-        //    dof += Blur5x5(rtvTex,input.uv, float2(1.0f, 1.0f), float4(0.0f,0.0f, 1.0f, 1.0f)) * blendRate[1];
-        //    for (int i = 0; i < 6; ++i)
-        //    {
-                
-        //        dof += Blur5x5(dofShrinkTex, uvOffset + input.uv * uvRate, float2(1.0f, 0.5f), float4(uvOffset, uvRate)) * blendRate[i + 2];
-        //        uvOffset.y += uvRate.y;
-        //        uvRate *= 0.5f;
-        //    }
-        //    return dof;
-        //}
-        return float4(org.rgb * ssao /** bright*/, org.a);
+            float2 uvRate = float2(1.0f, 0.5f);
+            float2 uvOffset = float2(0.0f, 0.0f);
+            float4 dof = org * blendRate[0];
+            dof += Blur5x5(rtvTex, input.uv, float2(1.0f, 1.0f), float4(0.0f, 0.0f, 1.0f, 1.0f)) * blendRate[1];
+            for (int i = 0; i < 6; ++i)
+            {
+                dof += Blur5x5(dofShrinkTex, uvOffset + input.uv * uvRate, float2(1.0f, 0.5f), float4(uvOffset, uvRate)) * blendRate[i + 2];
+                uvOffset.y += uvRate.y;
+                uvRate *= 0.5f;
+            }
+            return dof;
+        }
+        //return float4(org.rgb * ssao /** bright*/, org.a);
     }
 	else
 	{
-        float2 aspect = float2(1.0f, w / h);
-        float3 eye = float3(0, 0, -2.5); //視点
-        float3 tpos = float3(input.uv / aspect, 0);
+        //// 2Dレイマーチング
+        //float2 aspect = float2(w / h, 1);
+
+        //float div = 10.0f;
+        //float sdf = SDFLatticeCircle2D(input.uv, aspect, div);
+        ////sdf = length(fmod(input.uv * aspect, 0.1)) - 0.1f;
+        //if (sdf < 0)
+        //{
+        //    //sdf = abs(sdf) * (1.0 / div);
+        //    return float4(1, 1, 1, 1);
+        //}
+        //else
+        //{
+        //    return float4(0.5, 0.5, 1, 1);
+        //}
+        
+        // 3Dレイマーチング
+        const float epsilon = 0.001f;
+        float2 aspect = float2(w / h, 1);
+        float3 eye = float3(0, 0, -5.0f); //視点
+        float3 tpos = float3((input.uv * float2(2, -2) + float2(-1, 1)) * aspect, 0);
+        float3 center = float3(0, 0, 5);
         float3 ray = normalize(tpos - eye); //レイベクトル(このシェーダ内では一度計算したら固定)
-        float rsph = 1.0f; //球体の半径
-        //int count = 256;
-        for (int i = 0; i < 64; ++i)
+       
+        const uint count = 64;
+        for (int i = 0; i < count; ++i)
         {
-            float len = length(fmod(eye - float3(1, 1, 10), rsph * 2) - rsph) - rsph / 2;
-            eye += ray * len;
-            if (len < 0.001f)
+            float3 normal = 1.0f;
+            //float len = length(fmod(eye - float3(1, 1, 10), rsph * 2) - rsph) - rsph / 2;
+            //float3 q = fmod(eye + 0.5f * ray, ray) - 0.5f * ray;
+            //float t = SDFLatticeSphere(abs(eye), 0.25f, 1.0f, normal);
+            //float t = SDFRoundBox2(eye, float3(0.2,0.2,0.2), 0.1);
+            float t = SDFLatticeRoundBox(eye,0.2f, 0.1f, 2.0f);
+            if (t <= epsilon)
             {
-                return float4((float) (64 - i) / 64.0f, (float) (64 - i) / 64.0f, (float) (64 - i) / 64.0f, 1);
+                  //float(count - i) / float(count);
+              // return float4(1, 1, 1, 1);
+                //float3 nRay = float3(-1.0f, 0.0f, 0.0f);
+                float3 nRay = float3(-1.0f, 1.0f, -1.0f);
+                normal = NormalRoundBox(eye, 0.2f, 0.1f, epsilon);
+                float b = saturate(dot(normal, normalize(nRay))/* + 0.1f*/);
+            
+                float3 harfV = -ray + normalize(nRay);
+                harfV = normalize(harfV);
+                float3 mcol = float3(1, 1, 0);
+                mcol = saturate(b * mcol);
+                mcol += saturate(pow(saturate(dot(harfV, normal)), 30));
+                
+                return float4(mcol, 1);
+                //return float4(float3(b,b,b), 1);
+                
             }
+            eye += ray * t;
         }
-        return float4(0, 0, 0, 0);
-		////return float4(input.uv, 1, 1);
-		//float div = 1.0f / 128.0f;
-		//float2 aspect = float2(1.0f, w / h);
-		////float2 iuv = (input.uv * 0.2) + float2(0.4,0.2);	// 拡大
-		//float4 dest = float4(fmod(input.uv / aspect, div) / div, 1, 1);      
+        return float4(0.0, 0.0, 0, 0);
+        
+        
+        //return float4(0, 0, 0, 0);
+		//return float4(input.uv, 1, 1);
+       // float div = 1.0f / 128.0f;
+        //float2 aspect = float2(1.0f, w / h);
+		//float2 iuv = (input.uv * 0.2) + float2(0.4,0.2);	// 拡大
+        //float4 dest = float4(fmod(input.uv / aspect, div) / div, 1, 1);
     }
 
 	// 輪郭線表示

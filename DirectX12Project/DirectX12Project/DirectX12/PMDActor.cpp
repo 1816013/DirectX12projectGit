@@ -34,7 +34,6 @@ PMDActor::PMDActor(ComPtr<ID3D12Device>& dev, const char* path, XMFLOAT3 pos, Ca
 
 PMDActor::~PMDActor()
 {
-
 }
 
 void PMDActor::CreatePMDModelTexture()
@@ -157,7 +156,7 @@ void PMDActor::DrawModel(ComPtr<ID3D12GraphicsCommandList>& cmdList)
 
 		cmdList->DrawIndexedInstanced(
 			indexNum,		// インデックス数
-			25,				// インスタンス数
+			instNum.x * instNum.y,				// インスタンス数
 			indexOffset,	// インデックスオフセット
 			0,				// 頂点オフセット
 			0);				// インスタンスオフセット
@@ -257,6 +256,7 @@ bool PMDActor::CreateBasicDescriptors()
 
 bool PMDActor::CreateTransformBuffer()
 {
+
 	transformBuffer_ = CreateBuffer(Common::AligndValue(sizeof(BasicMatrix), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 	auto wSize = Application::GetInstance().GetWindowSize();
 	/*XMFLOAT4X4 tempMat = {};
@@ -320,6 +320,8 @@ bool PMDActor::CreateTransformBuffer()
 	mappedBasicMatrix_->lightPos = light;
 	mappedBasicMatrix_->lightVP = view * proj;
 	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
+	mappedBasicMatrix_->disolveTop = 20.0f;
+	mappedBasicMatrix_->disolveBottom = -2.0f;
 	return true;
 }
 
@@ -354,21 +356,22 @@ void PMDActor::Update(float delta)
 
 	mappedBasicMatrix_->viewproj = camera_->GetCameaView() * camera_->GetCameaProj();
 
-	for (int z = 0; z < 5; ++z)
+	for (int z = 0; z < instNum.y; ++z)
 	{
-		for (int x = 0; x < 5; ++x)
+		for (int x = 0; x < instNum.x; ++x)
 		{
-			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixTranslation(-pos_.x, -pos_.y, -pos_.z);
-			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixRotationY(angle_);
-			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
+			mappedBasicMatrix_->trans[x + z * instNum.x] *= XMMatrixTranslation(-pos_.x, -pos_.y, -pos_.z);
+			mappedBasicMatrix_->trans[x + z * instNum.x] *= XMMatrixRotationY(angle_);
+			mappedBasicMatrix_->trans[x + z * instNum.x] *= XMMatrixTranslation(pos_.x, pos_.y, pos_.z);
 
-			mappedBasicMatrix_->trans[x + z * 5] *= XMMatrixTranslation(0, 0, move);
+			mappedBasicMatrix_->trans[x + z * instNum.x] *= XMMatrixTranslation(0, 0, move);
 		}
 	}
 
+
 	XMVECTOR plane = { 0.0f,1.0f,0.0f,-0.01f };		// 平面方程式
 	XMVECTOR light = { -1.0f,1.0f,1.0f,0.0f };		// 光源行列
-	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
+	//mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
 	frame_ += delta * 30;
 	UpdateBones(static_cast<int>(fmodf(frame_, vmdMotion_->GetVMDData().duration)));
 	
@@ -388,6 +391,12 @@ D3D12_INDEX_BUFFER_VIEW& PMDActor::GetIbView()
 {
 	return ibView_;
 }
+
+DirectX::XMINT2& PMDActor::GetInstID()
+{
+	return instNum;
+}
+
 
 bool PMDActor::CreateMaterialBufferView()
 {

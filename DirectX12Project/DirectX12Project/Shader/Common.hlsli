@@ -17,6 +17,10 @@ cbuffer Transform:register(b0)
     matrix lightVP;
     matrix trans[25];
 	float4 lightPos;	// ライト座標
+    float disolveTop;
+    float disolveBottom ;
+	
+    bool isShadow;	// 影を落とすかどうか
 }
 
 // ボーン
@@ -58,4 +62,12 @@ struct VsOutput
 	min16uint2 boneNum : BONE_NO;	// デバッグ用ボーン番号
 	float weight : WEIGHT;		// デバッグ用ウェイト
 	uint instID : SV_InstanceID;
+};
+
+struct PrimOut
+{
+    float4 svpos : SV_POSITION; // システム座標
+    float4 normal : NORMAL;
+    float4 pos : POSITION0; // 頂点座標
+    float4 lvpos : POSITION1; // ライトから見た頂点
 };

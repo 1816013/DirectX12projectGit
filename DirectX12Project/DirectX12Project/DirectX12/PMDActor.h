@@ -17,8 +17,11 @@ struct BasicMatrix
 	DirectX::XMMATRIX viewproj;	// ビュープロジェクション(カメラ)
 	DirectX::XMMATRIX shadow;	// 影
 	DirectX::XMMATRIX lightVP;	// ビュープロジェクション(光源)
-	DirectX::XMMATRIX trans[25];	// 25体インスタンシング用
+	DirectX::XMMATRIX trans[25];// 25体インスタンシング用
 	DirectX::XMVECTOR lightPos;	// 光源座標
+	float disolveTop = 20.0f;
+	float disolveBottom = -2.0f;
+	bool isShadowing; // 影をつけるかどうか
 };
 class PMDLoder;
 class PMDResource;
@@ -74,6 +77,8 @@ public:
 
 	D3D12_VERTEX_BUFFER_VIEW& GetVbView();	// 頂点バッファビュー
 	D3D12_INDEX_BUFFER_VIEW& GetIbView();	// インデックスバッファビュー
+
+	DirectX::XMINT2& GetInstID();
 
 private:
 	
@@ -159,6 +164,8 @@ private:
 	std::shared_ptr<BasicMatrix> mappedBasicMatrix_;	// map中の基本定数バッファ
 	// モーションデータ
 	std::shared_ptr<VMDLoder>vmdMotion_;
+	DirectX::XMINT2 instNum = {5, 5};	// X方向に何体出すか
+	
 
 	DirectX::XMFLOAT3 pos_;
 	float angle_;

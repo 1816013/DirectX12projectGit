@@ -82,7 +82,7 @@ private:
 
 	ComPtr<ID3D12Device> dev_;
 	// 重複したデータが入らないようにするためのデータ
-	std::unordered_map<std::wstring, ID3D12Resource*>textureResource_;
+	std::unordered_map<std::wstring, ComPtr<ID3D12Resource>>textureResource_;
 	// 中間バッファ一時保持用
 	std::vector<ComPtr<ID3D12Resource>>intermediateBuffList_;
 

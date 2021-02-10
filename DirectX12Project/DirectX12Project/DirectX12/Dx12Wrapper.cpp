@@ -16,6 +16,7 @@
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_win32.h"
 #include "../imgui/imgui_impl_dx12.h"
+
 //#include "../BMPLoder/BmpLoder.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -312,6 +313,14 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 
 	mappedBoardBuffer_->invProj = XMMatrixInverse(&det, proj);
 	mappedBoardBuffer_->pos = XMFLOAT2(0, 0);
+	mappedBoardBuffer_->bloomActive = true;
+	mappedBoardBuffer_->dofActive = true;
+	mappedBoardBuffer_->outLineD = true;
+	mappedBoardBuffer_->outLineN = true;
+	mappedBoardBuffer_->ssaoActive = true;
+	mappedBoardBuffer_->bloomCol[0] = 1;
+	mappedBoardBuffer_->bloomCol[1] = 1;
+	mappedBoardBuffer_->bloomCol[2] = 1;
 	// 3つのレンダーターゲットの作成
 	// レンダーターゲットビュー
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
@@ -685,6 +694,17 @@ void Dx12Wrapper::CreateShadowPipeline()
 	assert(SUCCEEDED(result));
 	plsDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
 
+	ComPtr<ID3DBlob> psBlob = nullptr;
+	result = D3DCompileFromFile(L"Shader/ShadowVS.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"ShadowPS", "ps_5_1",
+		0,
+		0, psBlob.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+	OutputFromErrorBlob(errBlob.Get());
+	assert(SUCCEEDED(result));
+	plsDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+
 	// ラスタライザ設定
 	plsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	plsDesc.RasterizerState.FrontCounterClockwise = true;
@@ -732,8 +752,8 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 	auto dsvHandle = shadowDSVHeap_->GetCPUDescriptorHandleForHeapStart();
 	cmdList_->OMSetRenderTargets(0, nullptr, false, &dsvHandle);
 	cmdList_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-	XMVECTOR camPos = { -20,20,20 };
-	XMVECTOR direction = { 1,-1,-1 };
+	XMVECTOR camPos = XMVectorScale( mat.lightPos, 20)/*{ -20,20,20 }*/;
+	XMVECTOR direction = -mat.lightPos;//{ 1,-1,-1 };
 	mat.lightVP = XMMatrixLookToRH(camPos, direction, { 0,1,0,0 });
 	mat.lightVP *= XMMatrixOrthographicRH(50.0f, 50.0f, 1.0f, 500.0f);
 
@@ -747,10 +767,11 @@ void Dx12Wrapper::DrawShadow(BasicMatrix& mat)
 	// 描画命令
 	for (auto& actor : pmdActor_)
 	{
+		const auto& instID = actor->GetInstID();
 		auto descHeap = actor->GetPMDResource().GetGroops(GroopType::TRANSFORM).descHeap_.Get();
 		cmdList_->SetDescriptorHeaps(1, &descHeap);
 		cmdList_->SetGraphicsRootDescriptorTable(0, descHeap->GetGPUDescriptorHandleForHeapStart());
-		cmdList_->DrawIndexedInstanced(static_cast<UINT>(actor->GetPMDModel().GetIndexData().size()), 25, 0, 0, 0);
+		cmdList_->DrawIndexedInstanced(static_cast<UINT>(actor->GetPMDModel().GetIndexData().size()), instID.x * instID.y, 0, 0, 0);
 	}
 	
 	//// リソースバリアを設定デプスからピクセルシェーダ
@@ -846,6 +867,18 @@ ComPtr<ID3D12DescriptorHeap> Dx12Wrapper::CreateImguiDescriptorHeap()
 	return imguiHeap_;
 }
 
+void Dx12Wrapper::CreateFontDescriptorHeap()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	auto result = dev_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(fontDescHeap_.ReleaseAndGetAddressOf()));
+	assert(SUCCEEDED(result));
+
+}
+
 Dx12Wrapper::Dx12Wrapper()
 {
 	
@@ -897,8 +930,36 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	
 	CreateFence();
 
-	CreateImguiDescriptorHeap();
 
+	// フォント表示初期化
+	gMemory_ = new GraphicsMemory(dev_.Get());
+	auto rb = ResourceUploadBatch(dev_.Get());
+	rb.Begin();
+	RenderTargetState rtState(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
+	SpriteBatchPipelineStateDescription sbpStateDesc(rtState);
+	spriteBatch_ = new SpriteBatch(
+		dev_.Get(),
+		rb,
+		sbpStateDesc);
+	CreateFontDescriptorHeap();
+	spriteFonts_ = new SpriteFont(dev_.Get(),
+		rb,
+		L"Resource/Font/meiryo.spritefont",
+		fontDescHeap_->GetCPUDescriptorHandleForHeapStart(),
+		fontDescHeap_->GetGPUDescriptorHandleForHeapStart());
+	auto future = rb.End(cmdQue_.Get());
+	cmdQue_->Signal(fence_.Get(), ++fenceValue_);
+	// Execute完了まで待つ処理
+	while (true)
+	{
+		if (fence_->GetCompletedValue() == fenceValue_)
+		{
+			break;
+		}
+	}
+	future.wait();
+
+	CreateImguiDescriptorHeap();
 	if (ImGui::CreateContext() == nullptr)
 	{
 		assert(false);
@@ -917,6 +978,8 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	{
 		assert(false);
 	}
+	//ImGuiIO& io = ImGui::GetIO();
+	//io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
 
 	cameraCtr_ = make_unique<CameraCtr>();
 
@@ -978,9 +1041,9 @@ bool Dx12Wrapper::Init(HWND hwnd)
 
 	// 床のデスクリプタヒープ
 	CreatePrimitiveBufferView();
-
 	// ビューポートとシザー矩形初期化
 	InitViewRect();
+	
 	// 板ポリパイプライン作成
 	CreateBoardPipeline();
 	// 影のパイプライン作成
@@ -1050,6 +1113,7 @@ bool Dx12Wrapper::Update()
 	static auto lastTime = GetTickCount64();
 	static float deltaTime = 0.0f;
 	static int frame = 0;
+	
 	auto rtvIncSize = dev_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeaps[6] = {};
 	// 0:1パス目の色
@@ -1062,7 +1126,7 @@ bool Dx12Wrapper::Update()
 	D3D12_CPU_DESCRIPTOR_HANDLE  dsvHeaps[] = { depthDescHeap_->GetCPUDescriptorHandleForHeapStart() };
 
 	// カメラ操作
-	cameraCtr_->MoveCamera(XMFLOAT3(0, 1, 0));
+	//cameraCtr_->MoveCamera(XMFLOAT3(0, 1, 0));
 
 	// pmdモデルアップデート
 	for (auto& actor : pmdActor_)
@@ -1113,7 +1177,7 @@ bool Dx12Wrapper::Update()
 
 	// 板ポリ更新
 	mappedBoardBuffer_->time += deltaTime;
-	mappedBoardBuffer_->time = fmodf(mappedBoardBuffer_->time, 2);
+	//mappedBoardBuffer_->time = fmodf(mappedBoardBuffer_->time, 2);
 	if (GetAsyncKeyState(VK_LBUTTON))
 	{
 		POINT point = {};
@@ -1215,23 +1279,94 @@ bool Dx12Wrapper::Update()
 		D3D12_RESOURCE_STATE_RENDER_TARGET// 後ろターゲット
 	);
 
+	// font
+	ID3D12DescriptorHeap* fontHeaps[] = { fontDescHeap_.Get() };
+	cmdList_->SetDescriptorHeaps(1, fontHeaps);
+	spriteBatch_->SetViewport(viewPort_);
+	spriteBatch_->Begin(cmdList_.Get());
+	
+	static wstring wString = L"ハローワールド";
+	spriteFonts_->DrawString(spriteBatch_, wString.c_str(), XMFLOAT2(600, 100), DirectX::Colors::Red);
+	spriteBatch_->End();
+
+	// imgui
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 	ImGui::Begin("RenderingtestMenu");
 
 	static ImVec2 imSize = ImVec2(100, 100);
-	ImGui::SetWindowSize(imSize);
-	float col[3];
-	ImGui::ColorPicker3("col3", col);
 	imSize = ImGui::GetWindowSize();
+	ImGui::SetWindowSize(imSize);
+	//static char string[] = "new Text";
+	//ImGui::InputText("string", string, 256);
+	//wString = StrOperater::GetWideStringfromString(string);
+	static float lightFloatVal; 
+	auto& mat = pmdActor_[0]->GetBasicMarix();
+	if(ImGui::TreeNode("Light Pos"))
+	{
+		ImGui::SliderFloat("pos X", &mat.lightPos.m128_f32[0], -1.0f, 1.0f, "%f");
+		ImGui::SliderFloat("pos Y", &mat.lightPos.m128_f32[1], -1.0f, 1.0f, "%f");
+		ImGui::SliderFloat("pos Z", &mat.lightPos.m128_f32[2], -1.0f, 1.0f, "%f");
+		ImGui::TreePop();
+	}
+	
+	if (ImGui::TreeNode("Camera"))
+	{
+		ImGui::SliderFloat("FieldOfView", &fov_, 30.0f, 150.0f, "%f");
+		ImGui::SliderFloat("Near", &cNear_, 0.1f, 30.0f, "%f");
+		ImGui::SliderFloat("Far", &cFar_, 100.0f, 1000.0f, "%f");
+		ImGui::TreePop();
+	}
+	auto& instID = pmdActor_[0]->GetInstID();
+	if (ImGui::TreeNode("InstID"))
+	{
+		ImGui::SliderInt("X", &instID.x, 1, 5, "%d");
+		ImGui::SliderInt("Z", &instID.y, 1, 5, "%d");
+		ImGui::TreePop();
+	}	
+	ImGui::Checkbox("Shadow", &mat.isShadowing);
+	if (ImGui::TreeNode("PostEffect"))
+	{
+		bool ssao = mappedBoardBuffer_->ssaoActive;
+		bool bloom = mappedBoardBuffer_->bloomActive;
+		bool dof = mappedBoardBuffer_->dofActive;
+		bool nOutline = mappedBoardBuffer_->outLineN;
+		bool dOutline = mappedBoardBuffer_->outLineD;
+		ImGui::Checkbox("Ssao", &ssao);
+		ImGui::Checkbox("Bloom", &bloom);
+		ImGui::Checkbox("Dof", &dof);
+		ImGui::Checkbox("OutLineN", &nOutline);
+		ImGui::Checkbox("OutLineD", &dOutline);
+		mappedBoardBuffer_->ssaoActive = ssao;
+		mappedBoardBuffer_->bloomActive = bloom;
+		mappedBoardBuffer_->dofActive = dof;
+		mappedBoardBuffer_->outLineN = nOutline;
+		mappedBoardBuffer_->outLineD = dOutline;
 
+
+		ImGui::ColorPicker3("BloomColor", mappedBoardBuffer_->bloomCol, ImGuiColorEditFlags_PickerHueWheel);
+
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Disolve"))
+	{
+		ImGui::SliderFloat("Top", &mat.disolveTop, 0.0f, 20.0f, "%f");
+		ImGui::SliderFloat("Bottom", &mat.disolveBottom, -2.0f, 20.0f, "%f");
+		ImGui::TreePop();
+	}
 
 	ImGui::End();
 	ImGui::Render();
 
 	cmdList_->SetDescriptorHeaps(1, imguiHeap_.GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList_.Get());
+
+	const auto wSize = Application::GetInstance().GetWindowSize();
+	cameraCtr_->GetCamera().GetCameaProj() = XMMatrixPerspectiveFovRH(XMConvertToRadians(fov_), // 画角(FOV)
+		static_cast<float>(wSize.width) / static_cast<float>(wSize.height),
+		cNear_,	// ニア(近い)
+		cFar_);	//　ファー(遠い)
 
 	cmdList_->ResourceBarrier(1, &barrier);
 	// リソースバリアを設定シェーダからレンダーターゲット

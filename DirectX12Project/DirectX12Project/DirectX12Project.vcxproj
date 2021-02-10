@@ -99,7 +99,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(EFK_DIR)\include\Effekseer;$(EFK_DIR)\include\EffekseerRendererDX12;$(DXTEX_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(EFK_DIR)\include\Effekseer;$(EFK_DIR)\include\EffekseerRendererDX12;$(DXTK12_DIR)\inc;$(DXTEX_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <GenerateXMLDocumentationFiles>true</GenerateXMLDocumentationFiles>
       <DisableSpecificWarnings>26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -107,8 +107,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(EFK_DIR)\lib;$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(EFK_DIR)\lib;$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Debug;$(DXTK12_DIR)\Bin\Desktop_2019_Win10\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Effekseerd.lib;EffekseerRendererDX12d.lib;LLGId.lib;DirectXTK12.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Xdcmake>
       <AdditionalDocumentFile>
@@ -139,7 +139,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(EFK_DIR)\include\Effekseer;$(EFK_DIR)\include\EffekseerRendererDX12;$(DXTEX_DIR);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(EFK_DIR)\include\Effekseer;$(EFK_DIR)\include\EffekseerRendererDX12;$(DXTEX_DIR);$(DXTK12_DIR)\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -147,7 +147,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Release;$(EFK_DIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DXTEX_DIR)\Bin\Desktop_2019_Win10\x64\Release;$(EFK_DIR)\lib;$(DXTK12_DIR)\Bin\Desktop_2019_Win10\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Effekseer.lib;EffekseerRendererDX12.lib;LLGI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>

@@ -9,17 +9,29 @@
 #include <unordered_map>
 #include <array>
 
+// 後で何とかする
+#include <SpriteFont.h>
+#include <ResourceUploadBatch.h>
+
 
 using Microsoft::WRL::ComPtr;
 
 struct BoardConstBuffer
 {
-	DirectX::XMMATRIX proj; // プロジェクション(3D→2D)
-	DirectX::XMMATRIX invProj; // 逆プロジェクション(2D→3D)
-	DirectX::XMFLOAT2 pos;
-	float time;
+	DirectX::XMMATRIX proj; // プロジェクション(3D→2D)64
+	DirectX::XMMATRIX invProj; // 逆プロジェクション(2D→3D)64
+	DirectX::XMFLOAT2 pos;	// クリックされた座標 8
+	float time;	// time 4
+	// 下の効果を適用するかどうか
+	uint32_t ssaoActive = true;	// SSAO
+	uint32_t bloomActive = true;	// 光る
+	uint32_t dofActive = true;	// 被写界深度
+	uint32_t outLineN = true;	// 法線アウトライン
+	uint32_t outLineD = true;	// 深度アウトライン
+	float bloomCol[3];
 };
 
+// 前方宣言
 class PMDActor;
 class Renderer;
 class PrimitiveManager;
@@ -167,9 +179,10 @@ private:
 
 
 	bool CreateSSAOPipeLine();
-	void DrawAmbientOcclusion();
 
 	ComPtr<ID3D12DescriptorHeap> CreateImguiDescriptorHeap();
+
+	void CreateFontDescriptorHeap();
 
 	HWND hwnd_;
 
@@ -257,7 +270,16 @@ private:
 
 	// imgui関連
 	ComPtr<ID3D12DescriptorHeap>imguiHeap_;
+	float fov_ = 45.0f;		// 被写界深度
+	float cNear_ = 0.1f;	// クリップ用
+	float cFar_ = 1000.0f;	// クリップ用
 
+	// DirectXTK関連
+	// フォント表示
+	ComPtr<ID3D12DescriptorHeap> fontDescHeap_;
+	DirectX::GraphicsMemory* gMemory_;
+	DirectX::SpriteFont* spriteFonts_;
+	DirectX::SpriteBatch* spriteBatch_;
 
 	// 時間用
 	float oldTime = 0;
