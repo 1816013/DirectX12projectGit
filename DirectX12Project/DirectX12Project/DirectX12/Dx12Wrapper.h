@@ -23,11 +23,12 @@ struct BoardConstBuffer
 	DirectX::XMFLOAT2 pos;	// クリックされた座標 8
 	float time;	// time 4
 	// 下の効果を適用するかどうか
-	uint32_t ssaoActive = true;	// SSAO
-	uint32_t bloomActive = true;	// 光る
-	uint32_t dofActive = true;	// 被写界深度
-	uint32_t outLineN = true;	// 法線アウトライン
-	uint32_t outLineD = true;	// 深度アウトライン
+	uint32_t ssaoActive;	// SSAO
+	uint32_t bloomActive;	// 光る
+	uint32_t dofActive;	// 被写界深度
+	uint32_t outLineN;	// 法線アウトライン
+	uint32_t outLineD;	// 深度アウトライン
+	uint32_t debug;	// 深度アウトライン
 	float bloomCol[3];
 };
 

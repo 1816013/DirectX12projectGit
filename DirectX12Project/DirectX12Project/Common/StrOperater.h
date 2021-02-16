@@ -17,6 +17,7 @@ public:
 	/// <returns>wstring‚É‚È‚Á‚½•¶š—ñ</returns>
 	static std::wstring GetWideStringfromString(const std::string& str);
 
+	static std::string GetStringfromWideString(const std::wstring& wstr);
 	/// <summary>
 	/// Šg’£q’Šo
 	/// </summary>

@@ -93,7 +93,7 @@ bool Application::InitWindow()
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);	// ウインドウサイズの補正
 	
 	windowH_ = CreateWindow(className,		// クラス名指定
-					L"DX12テスト",			// タイトルバーの文字
+					L"1816013_木村陸",			// タイトルバーの文字
 					WS_OVERLAPPEDWINDOW,	// タイトルバーと境界線があるウインドウ
 					CW_USEDEFAULT,			// 表示X座標(OSに任せる)
 					CW_USEDEFAULT,			// 表示Y座標(OSに任せる)

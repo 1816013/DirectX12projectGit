@@ -72,7 +72,7 @@ PsOutput PS(VsOutput input, uint instID : SV_InstanceID)
     // disolve
     output.hdr = pow(1.0f - saturate(abs(input.pos.y - disolveTop + rand)), 20);
     output.hdr += pow(1.0f - saturate(abs(input.pos.y - disolveBottom + rand)), 20);
-    //output.hdr += step(0.95f, gray);
+    output.hdr += step(0.95f, gray);
     //output.hdr += step(0.8f,output.color);
     //output.hdr =  step(1.5f, s + b);
     return output;

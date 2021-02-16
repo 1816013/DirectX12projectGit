@@ -23,6 +23,31 @@ wstring StrOperater::GetWideStringfromString(const string& str)
 	return ret;
 }
 
+string StrOperater::GetStringfromWideString(const wstring& wstr)
+{
+	string ret;
+	// ˆê‰ñ–Ú‚ÍƒTƒCƒY
+	auto stringSize = WideCharToMultiByte(CP_ACP,
+		WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+		wstr.c_str(),
+		static_cast<int>(wstr.length()),
+		nullptr,
+		0,
+		nullptr,
+		nullptr);
+	ret.resize(stringSize);
+	// “ñ‰ñ–Ú‚Í•¶Žš—ñ
+	WideCharToMultiByte(CP_ACP,
+		WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+		wstr.c_str(),
+		static_cast<int>(wstr.length()),
+		&ret[0],
+		static_cast<int>(ret.length()),
+		nullptr,
+		nullptr);
+	return ret;
+}
+
 string StrOperater::GetExtension(const string& path)
 {
 	int idx = static_cast<int>(path.rfind("."));

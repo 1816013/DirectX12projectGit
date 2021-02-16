@@ -322,6 +322,7 @@ bool PMDActor::CreateTransformBuffer()
 	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
 	mappedBasicMatrix_->disolveTop = 20.0f;
 	mappedBasicMatrix_->disolveBottom = -2.0f;
+	mappedBasicMatrix_->isShadowing = true;
 	return true;
 }
 

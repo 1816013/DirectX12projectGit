@@ -187,39 +187,42 @@ float4 PS(BoardOutput input) : SV_TARGET
     float w, h, level;
     rtvTex.GetDimensions(0, w, h, level); // スクリーン情報取得
     float2 dt = float2(1.0f / w, 1.0f / h);
- 	
+    if (debug)
+    {
+    
     //if (input.uv.x < 0.25f && input.uv.y < 0.25f)
     //{
     //    float b = lightDepTex.Sample(smp, input.uv * 4.0f);
     //   // b = pow(b, 100);
     //    return float4(b, b, b, 1);
     //}
-    if (input.uv.x < 0.25f && input.uv.y < 0.25f)
-    {
-        float bright = depTex.Sample(smp, input.uv * 4.0f);
-        //bright = pow(abs(bright), 100.0f);
-        return float4(bright, bright, bright, 1.0f);
-    }
-    if (input.uv.x < 0.25f && input.uv.y < 0.5f)
-    {
-        float4 normal = normalTex.Sample(smp, input.uv * 4.0f - float2(0,2.0f));
-        return normal;
-    }
-    if (input.uv.x < 0.25f && input.uv.y < 0.75f)
-    {
-        float4 hdr = hdrTex.Sample(smp, input.uv * 4.0f - float2(0, 3.0f));
-        return hdr;
-    } 
-    if (input.uv.x < 0.125f && input.uv.y < 1.0f)
-    {
-        float4 shrink = hdrShrinkTex.Sample(smp, input.uv * (8.0f * float2(1, 0.5f)));
-        return shrink;
-    }
+        if (input.uv.x < 0.25f && input.uv.y < 0.25f)
+        {
+            float bright = depTex.Sample(smp, input.uv * 4.0f);
+            bright = pow(abs(bright), 100.0f);
+            return float4(bright, bright, bright, 1.0f);
+        }
+        if (input.uv.x < 0.25f && input.uv.y < 0.5f)
+        {
+            float4 normal = normalTex.Sample(smp, input.uv * 4.0f - float2(0, 2.0f));
+            return normal;
+        }
+        if (input.uv.x < 0.25f && input.uv.y < 0.75f)
+        {
+            float4 hdr = hdrTex.Sample(smp, input.uv * 4.0f - float2(0, 3.0f));
+            return hdr;
+        }
+        if (input.uv.x < 0.125f && input.uv.y < 1.0f)
+        {
+            float4 shrink = hdrShrinkTex.Sample(smp, input.uv * (8.0f * float2(1, 0.5f)));
+            return shrink;
+        }
     //if (input.uv.x < 0.25f && input.uv.y < 1.0f)
     //{
     //    float ssao = ssaoTex.Sample(smp, input.uv * 4.0f - float2(0, 3.0f));
     //    return float4(ssao, ssao, ssao, 1);
     //}
+    }
     //return DistortionByNormalTex(clickPos);
     
 	// ラプシディアンフィルタ輪郭線
@@ -275,9 +278,10 @@ float4 PS(BoardOutput input) : SV_TARGET
         }
         else
         {
-            float blendRate[8] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+            const int blendNum = 8;
+            float blendRate[blendNum] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
             
-            float t = saturate(depDiff * 200.0f) * 8.0f;
+            float t = saturate(depDiff * 200.0f) * blendNum;
             uint no = 0;
             t = modf(t, no);
             
@@ -290,8 +294,7 @@ float4 PS(BoardOutput input) : SV_TARGET
             {
                 blendRate[0] = 1.0f;
             }
-            
-           
+        
             float2 uvRate = float2(1.0f, 0.5f);
             float2 uvOffset = float2(0.0f, 0.0f);
             float4 dof = org * blendRate[0];
@@ -304,7 +307,6 @@ float4 PS(BoardOutput input) : SV_TARGET
             }
             return dof;
         }
-        //return float4(org.rgb * ssao /** bright*/, org.a);
     }
 	else
 	{

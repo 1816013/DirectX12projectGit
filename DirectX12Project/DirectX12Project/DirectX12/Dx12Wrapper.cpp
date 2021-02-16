@@ -16,7 +16,7 @@
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_win32.h"
 #include "../imgui/imgui_impl_dx12.h"
-
+#include "../Debug.h";
 //#include "../BMPLoder/BmpLoder.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -28,134 +28,12 @@ using namespace std;
 
 namespace
 {
-	//vector<PMDVertex> vertices_;
-	//vector<unsigned short>indices_;
-
 	constexpr int minTexSize = 4;
 	constexpr int maxTexHeight = 256;
 		
 	// 中間バッファ一時保持用
 	vector<ComPtr<ID3D12Resource>>intermediateBuffList_;
 }
-
-void CreateVertices()
-{
-	//// 手前
-	//vertices_.push_back(Vertex({ -100.0f, -100.0f,100 }, { 0.0f,1.0f })); //左上
-	//vertices_.push_back(Vertex({ -100.0f, 100.0f, 100}, { 0.0f,0.0f }));  //左下
-	//vertices_.push_back(Vertex({ 100.0f,-100.0f,100 }, { 1.0f,1.0f }));	  //右上
-	//vertices_.push_back(Vertex({ 100.0f, 100.0f,100 }, { 1.0f,0.0f }));	  //右下
-
-	//// 奥
-	//vertices_.push_back(Vertex({ -100.0f, -100.0f,-100 }, { 1.0f,1.0f }));	//左上
-	//vertices_.push_back(Vertex({ -100.0f, 100.0f, -100 }, { 1.0f,0.0f }));	//左下
-	//vertices_.push_back(Vertex({ 100.0f, -100.0f,-100 }, { 0.0f,1.0f }));	//右上
-	//vertices_.push_back(Vertex({ 100.0f, 100.0f,-100 }, { 0.0f,0.0f }));	//右下
-
-
-	//	// 上
-	//vertices_.push_back(Vertex({ 100.0f, 100.0f,100 }, { 0.0f,1.0f }));	//左上
-	//vertices_.push_back(Vertex({ -100.0f, 100.0f, 100 }, { 0.0f,0.0f }));	//左下
-	//vertices_.push_back(Vertex({ 100.0f, 100.0f,-100 }, { 1.0f,1.0f }));	//右上
-	//vertices_.push_back(Vertex({ -100.0f, 100.0f,-100 }, { 1.0f,0.0f }));	//右下
-	//// 下
-	//vertices_.push_back(Vertex({ -100.0f, -100.0f,100 }, { 0.0f,1.0f }));	//左上
-	//vertices_.push_back(Vertex({ 100.0f, -100.0f, 100 }, { 0.0f,0.0f }));	//左下
-	//vertices_.push_back(Vertex({ -100.0f, -100.0f,-100 }, { 1.0f,1.0f }));	//右上
-	//vertices_.push_back(Vertex({ 100.0f, -100.0f,-100 }, { 1.0f,0.0f }));	//右下
-
-
-}
-
-void CreateIndices()
-{
-	//indices_ = { 0, 1, 2, 2, 1, 3 ,	// 前面
-	//			 2, 3, 6, 6, 3, 7,	// 右面
-	//			 6, 7, 4, 4, 7, 5,	// 裏面
-	//			 4, 5, 0, 0, 5, 1,	// 左面
-	//			 8, 9, 10, 10, 9, 11,// 上面
-	//			 12, 13, 14, 14, 13, 15 // 下面
-	//			 };
-}
-
-//bool Dx12Wrapper::CreateMonoColorTexture(ColTexType colType, const Color col)
-//{	
-//	HRESULT result = S_OK;
-//	Size size = { minTexSize, minTexSize };
-//	std::vector<Color>texData(size.width * size.height);
-//	
-//	std::fill(texData.begin(), texData.end(), col);	// 全部0xffで初期化
-//	
-//	D3D12_SUBRESOURCE_DATA subResData = {};
-//	subResData.pData = texData.data();
-//	subResData.RowPitch = sizeof(texData[0]) * size.width;
-//	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
-//	SetUploadTexure(subResData, colType);
-//	
-//	return true;
-//}
-//
-//bool Dx12Wrapper::CreateGradationTexture(const Size size)
-//{
-//	std::vector<Color>texData(size.width * size.height);
-//	for (size_t i = 0; i < 256; ++i)
-//	{
-//		fill_n(&texData[i * 4], 4, Color(static_cast<uint8_t>(255 - i)));	// rgb全部0x00で初期化
-//	}
-//	D3D12_SUBRESOURCE_DATA subResData = {};
-//	subResData.pData = texData.data();
-//	subResData.RowPitch = sizeof(texData[0]) * size.width;
-//	subResData.SlicePitch = sizeof(texData[0]) * size.width * size.height;
-//	SetUploadTexure(subResData, ColTexType::Grad);
-//	return true;
-//}
-//
-//void Dx12Wrapper::SetUploadTexure(D3D12_SUBRESOURCE_DATA& subResData, ColTexType colType)
-//{
-//	defTextures_.resize(static_cast<int>(ColTexType::Max));
-//	auto& texture = defTextures_[static_cast<int>(colType)];
-//	// 転送先
-//	auto width = subResData.RowPitch / sizeof(Color);
-//	auto height = subResData.SlicePitch / subResData.RowPitch;
-//	
-//	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
-//	D3D12_RESOURCE_DESC resDesc = 
-//		CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 
-//			width,
-//			static_cast<UINT>( height));
-//	auto result = dev_->CreateCommittedResource(&heapProp,
-//		D3D12_HEAP_FLAG_NONE,
-//		&resDesc,
-//		D3D12_RESOURCE_STATE_COPY_DEST,
-//		nullptr,
-//		IID_PPV_ARGS(texture.ReleaseAndGetAddressOf()));
-//	assert(SUCCEEDED(result));
-//
-//	// 転送元
-//	ComPtr<ID3D12Resource>intermediateBuff;	// 中間バッファ
-//	auto buffSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
-//	auto intermediateHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-//	auto intermediateResDesc = CD3DX12_RESOURCE_DESC::Buffer(buffSize);
-//
-//	result = dev_->CreateCommittedResource(&intermediateHeapProp,
-//		D3D12_HEAP_FLAG_NONE,
-//		&intermediateResDesc,
-//		D3D12_RESOURCE_STATE_GENERIC_READ,
-//		nullptr,
-//		IID_PPV_ARGS(intermediateBuff.ReleaseAndGetAddressOf()));
-//	assert(SUCCEEDED(result));
-//	intermediateBuffList_.push_back(intermediateBuff);
-//	
-//	// コマンドリストに登録
-//	// 中でCopyTextureRegionが走っているため
-//	// コマンドキュー待ちが必要
-//	UpdateSubresources(cmdList_.Get(), texture.Get(),
-//		intermediateBuff.Get(), 0, 0, 1, &subResData);
-//	cmdList_->ResourceBarrier(1,
-//		&CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
-//			D3D12_RESOURCE_STATE_COPY_DEST,
-//			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-//}
 
 bool Dx12Wrapper::CreateDefaultTextures()
 {
@@ -318,6 +196,7 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 	mappedBoardBuffer_->outLineD = true;
 	mappedBoardBuffer_->outLineN = true;
 	mappedBoardBuffer_->ssaoActive = true;
+	mappedBoardBuffer_->debug = true;
 	mappedBoardBuffer_->bloomCol[0] = 1;
 	mappedBoardBuffer_->bloomCol[1] = 1;
 	mappedBoardBuffer_->bloomCol[2] = 1;
@@ -890,6 +769,7 @@ Dx12Wrapper::~Dx12Wrapper()
 
 bool Dx12Wrapper::Init(HWND hwnd)
 {
+	auto& logger = Logger::GetInstance();
 	hwnd_ = hwnd;
 	HRESULT result = S_OK;
 #if _DEBUG
@@ -915,6 +795,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 		std::wstring strDesc = adptDesc.Description;
 		if (strDesc.find(L"NVIDIA") != std::string::npos)
 		{
+			logger.Output("Adapter NVIDIA");
 			adapter = adpt;
 			break;
 		}
@@ -958,7 +839,7 @@ bool Dx12Wrapper::Init(HWND hwnd)
 		}
 	}
 	future.wait();
-
+	logger.Output("Font Init");
 	CreateImguiDescriptorHeap();
 	if (ImGui::CreateContext() == nullptr)
 	{
@@ -980,9 +861,10 @@ bool Dx12Wrapper::Init(HWND hwnd)
 	}
 	//ImGuiIO& io = ImGui::GetIO();
 	//io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-
+	logger.Output("Imgui Init");
 	cameraCtr_ = make_unique<CameraCtr>();
 
+	logger.Output("Model Load");
 	renderer_ = make_shared<Renderer>(*dev_.Get());
 	//const char* modelPath = "Resource/PMD/桜ミク/mikuXS桜ミク.pmd";
 	//const char* modelPath = "Resource/PMD/雲雀/雲雀Ver1.10SW.pmd";
@@ -1053,8 +935,9 @@ bool Dx12Wrapper::Init(HWND hwnd)
 
 	primManager_ = make_shared<PrimitiveManager>(dev_);
 	primManager_->CreatePlane(XMFLOAT3(0, 0, 0), 50, 50);
-	//efcMng_ = make_shared<EffectManager>(dev_.Get(), cmdQue_.Get());
+	efcMng_ = make_shared<EffectManager>(dev_.Get(), cmdQue_.Get());
 
+	logger.Output("Init OK");
 	return true;
 }
 
@@ -1119,10 +1002,10 @@ bool Dx12Wrapper::Update()
 	// 0:1パス目の色
 	rtvHeaps[0] = rtvHeaps[1] = rtvHeaps[2] = rtvHeaps[3] = rtvHeaps[4] = rtvHeaps[5] = firstRtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	rtvHeaps[1].ptr += rtvIncSize;		// 1:1パス目の法線
-	rtvHeaps[2].ptr += rtvIncSize * 2;	// 2:1パス目の高輝度
-	rtvHeaps[3].ptr += rtvIncSize * 3;	// 3:縮小バッファの高輝度
-	rtvHeaps[4].ptr += rtvIncSize * 4;	// 4:縮小バッファの色
-	rtvHeaps[5].ptr += rtvIncSize * 5;	// 5:SSAO書き込み先
+	rtvHeaps[2].ptr += static_cast<SIZE_T>(rtvIncSize) * 2;	// 2:1パス目の高輝度
+	rtvHeaps[3].ptr += static_cast<SIZE_T>(rtvIncSize) * 3;	// 3:縮小バッファの高輝度
+	rtvHeaps[4].ptr += static_cast<SIZE_T>(rtvIncSize) * 4;	// 4:縮小バッファの色
+	rtvHeaps[5].ptr += static_cast<SIZE_T>(rtvIncSize) * 5;	// 5:SSAO書き込み先
 	D3D12_CPU_DESCRIPTOR_HANDLE  dsvHeaps[] = { depthDescHeap_->GetCPUDescriptorHandleForHeapStart() };
 
 	// カメラ操作
@@ -1164,13 +1047,13 @@ bool Dx12Wrapper::Update()
 	cmdList_->ResourceBarrier(1, &depthBarrier);
 	
 	// エフェクト(effekseer)
-	//efcMng_->Update(deltaTime * 60, cmdList_.Get());
+	efcMng_->Update(deltaTime * 60, cmdList_.Get());
 	BYTE keyState[256] = {};
 	static BYTE lastState[256] = {};
 	auto result = GetKeyboardState(keyState);
 	if (keyState[VK_SPACE] & 0x80 && !(lastState[VK_SPACE] & 0x80))
 	{
-		//efcMng_->PlayEffect("depthTest" , {0,10,0});
+		efcMng_->PlayEffect("depthTest" , {0,10,0});
 	}
 	result = GetKeyboardState(lastState);
 	frame++;
@@ -1326,6 +1209,9 @@ bool Dx12Wrapper::Update()
 		ImGui::TreePop();
 	}	
 	ImGui::Checkbox("Shadow", &mat.isShadowing);
+	bool debug = mappedBoardBuffer_->debug;
+	ImGui::Checkbox("Debug", &debug);
+	mappedBoardBuffer_->debug = debug;
 	if (ImGui::TreeNode("PostEffect"))
 	{
 		bool ssao = mappedBoardBuffer_->ssaoActive;
@@ -1338,6 +1224,7 @@ bool Dx12Wrapper::Update()
 		ImGui::Checkbox("Dof", &dof);
 		ImGui::Checkbox("OutLineN", &nOutline);
 		ImGui::Checkbox("OutLineD", &dOutline);
+		
 		mappedBoardBuffer_->ssaoActive = ssao;
 		mappedBoardBuffer_->bloomActive = bloom;
 		mappedBoardBuffer_->dofActive = dof;
@@ -1427,10 +1314,10 @@ void Dx12Wrapper::ClearDrawScreen()
 	// 0:1パス目の色
 	rtvHeaps[0] = rtvHeaps[1] = rtvHeaps[2] = rtvHeaps[3] = rtvHeaps[4] = rtvHeaps[5] = firstRtvHeap_->GetCPUDescriptorHandleForHeapStart();
 	rtvHeaps[1].ptr += rtvIncSize;		// 1:1パス目の法線
-	rtvHeaps[2].ptr += rtvIncSize * 2;	// 2:1パス目の高輝度
-	rtvHeaps[3].ptr += rtvIncSize * 3;	// 3:縮小バッファの高輝度
-	rtvHeaps[4].ptr += rtvIncSize * 4;	// 4:縮小バッファの色
-	rtvHeaps[5].ptr += rtvIncSize * 5;	// 5:SSAO書き込み先
+	rtvHeaps[2].ptr += static_cast<SIZE_T>(rtvIncSize) * 2;	// 2:1パス目の高輝度
+	rtvHeaps[3].ptr += static_cast<SIZE_T>(rtvIncSize) * 3;	// 3:縮小バッファの高輝度
+	rtvHeaps[4].ptr += static_cast<SIZE_T>(rtvIncSize) * 4;	// 4:縮小バッファの色
+	rtvHeaps[5].ptr += static_cast<SIZE_T>(rtvIncSize) * 5;	// 5:SSAO書き込み先
 	D3D12_CPU_DESCRIPTOR_HANDLE  dsvHeaps[] = { depthDescHeap_->GetCPUDescriptorHandleForHeapStart() };
 	cmdList_->OMSetRenderTargets(2, rtvHeaps, false, dsvHeaps);
 	// 画面をクリア(色変える)

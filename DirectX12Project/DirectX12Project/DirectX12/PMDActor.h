@@ -19,8 +19,8 @@ struct BasicMatrix
 	DirectX::XMMATRIX lightVP;	// ビュープロジェクション(光源)
 	DirectX::XMMATRIX trans[25];// 25体インスタンシング用
 	DirectX::XMVECTOR lightPos;	// 光源座標
-	float disolveTop = 20.0f;
-	float disolveBottom = -2.0f;
+	float disolveTop;
+	float disolveBottom;
 	bool isShadowing; // 影をつけるかどうか
 };
 class PMDLoder;
