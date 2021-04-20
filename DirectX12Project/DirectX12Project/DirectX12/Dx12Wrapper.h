@@ -205,11 +205,6 @@ private:
 	// シザー矩形
 	D3D12_RECT scissorRect_ = {};
 
-	// デフォルトテクスチャ
-	//std::vector<ComPtr<ID3D12Resource>>defTextures_;
-
-	// テクスチャリソース
-	//std::shared_ptr<TexManager> texManager_;
 	// PMDモデルデータ関連	
 	std::shared_ptr<Renderer>renderer_;
 	std::vector<std::shared_ptr<PMDActor>>pmdActor_;

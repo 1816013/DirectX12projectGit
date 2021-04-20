@@ -191,12 +191,12 @@ void Dx12Wrapper::CreateRenderTargetTexture()
 
 	mappedBoardBuffer_->invProj = XMMatrixInverse(&det, proj);
 	mappedBoardBuffer_->pos = XMFLOAT2(0, 0);
-	mappedBoardBuffer_->bloomActive = true;
-	mappedBoardBuffer_->dofActive = true;
-	mappedBoardBuffer_->outLineD = true;
-	mappedBoardBuffer_->outLineN = true;
-	mappedBoardBuffer_->ssaoActive = true;
-	mappedBoardBuffer_->debug = true;
+	mappedBoardBuffer_->bloomActive = false;
+	mappedBoardBuffer_->dofActive = false;
+	mappedBoardBuffer_->outLineD = false;
+	mappedBoardBuffer_->outLineN = false;
+	mappedBoardBuffer_->ssaoActive = false;
+	mappedBoardBuffer_->debug = false;
 	mappedBoardBuffer_->bloomCol[0] = 1;
 	mappedBoardBuffer_->bloomCol[1] = 1;
 	mappedBoardBuffer_->bloomCol[2] = 1;
