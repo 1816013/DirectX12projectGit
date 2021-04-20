@@ -65,6 +65,7 @@ PsOutput PS(VsOutput input, uint instID : SV_InstanceID)
 		* sph.Sample(smp, spUv)
 		+ spa.Sample(smp, spUv)
 		/*+ float4(texCol.rgb * ambient.rgb * 0.5, 1)*/;
+    output.color = texCol;
     output.normal = float4(input.norm.xyz + 1.0f * 0.5f,  1);
 	
     float gray = dot(float3(0.299, 0.587, 0.114), output.color.rgb);

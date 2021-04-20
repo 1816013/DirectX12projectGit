@@ -9,6 +9,12 @@
 class StrOperater
 {
 public:
+	/// <summary>
+	/// モデルパスとテクスチャパスからテクスチャ取得
+	/// </summary>
+	/// <param name="modelPath"></param>
+	/// <param name=""></param>
+	/// <returns></returns>
 	static std::string GetTextureFromModelAndTexPath(const std::string& modelPath, const std::string&);
 	/// <summary>
 	/// stringをwstringに変換

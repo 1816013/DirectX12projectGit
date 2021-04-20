@@ -28,8 +28,7 @@ float Random(float2 uv)
 struct ShadowVSOutput
 {
     float4 svpos : SV_POSITION; // システム座標
-    float4 pos : POSITION0; // 頂点座標
-   
+    float4 pos : POSITION0; // 頂点座標 
 };
 
 [RootSignature(MyRS1)]

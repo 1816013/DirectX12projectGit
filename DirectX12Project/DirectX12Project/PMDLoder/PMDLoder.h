@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 /// <summary>
 /// PMDの頂点情報
@@ -38,6 +39,11 @@ struct PMDBone
 #endif // _DEBUG
 };
 
+struct PMDSkin
+{
+	std::vector<std::pair<uint32_t, DirectX::XMFLOAT3>> skinData;
+};
+
 /// <summary>
 /// PMDモデルデータを扱うクラス
 /// </summary>
@@ -50,6 +56,15 @@ public:
 	/// <param name="path">ファイルパス</param>
 	/// <returns>true:成功　false:失敗</returns>
 	bool Load(const char* path);
+
+	void LoadIK(FILE* fp);
+
+	/// <summary>
+	/// ボーン読み込み
+	/// </summary>
+	/// <param name="boneNum">ボーン数格納用</param>
+	/// <param name="fp">ファイルポインタ</param>
+	void LoadBone(uint16_t& boneNum, FILE* fp);
 	
 	/// <summary>
 	/// 頂点情報取得
@@ -109,6 +124,7 @@ private:
 	std::string modelPath_;
 	std::vector<PMDBone>bones_;	// ボーン情報	
 	std::vector<DirectX::XMMATRIX>boneMats_;	// ボーン行列
+	std::unordered_map<std::string, PMDSkin>skinData_;
 	
 };
 

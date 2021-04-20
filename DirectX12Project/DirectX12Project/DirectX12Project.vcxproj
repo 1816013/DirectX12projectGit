@@ -165,7 +165,6 @@
     <ClCompile Include="DirectX12\Camera\cameraCtr.cpp" />
     <ClCompile Include="DirectX12\Dx12Wrapper.cpp" />
     <ClCompile Include="DirectX12\Effect\EffectManager.cpp" />
-    <ClCompile Include="Effect\EffectManager.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />
@@ -196,7 +195,6 @@
     <ClInclude Include="DirectX12\PMDActor.h" />
     <ClInclude Include="DirectX12\mesh\PlaneMesh.h" />
     <ClInclude Include="DirectX12\Effect\EffectManager.h" />
-    <ClInclude Include="Effect\EffectManager.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_impl_dx12.h" />

@@ -190,18 +190,18 @@ float4 PS(BoardOutput input) : SV_TARGET
     if (debug)
     {
     
-    //if (input.uv.x < 0.25f && input.uv.y < 0.25f)
-    //{
-    //    float b = lightDepTex.Sample(smp, input.uv * 4.0f);
-    //   // b = pow(b, 100);
-    //    return float4(b, b, b, 1);
-    //}
         if (input.uv.x < 0.25f && input.uv.y < 0.25f)
         {
-            float bright = depTex.Sample(smp, input.uv * 4.0f);
-            bright = pow(abs(bright), 100.0f);
-            return float4(bright, bright, bright, 1.0f);
+            float b = lightDepTex.Sample(smp, input.uv * 4.0f);
+            b = pow(b, 100);
+            return float4(b, b, b, 1);
         }
+        //if (input.uv.x < 0.25f && input.uv.y < 0.25f)
+        //{
+        //    float bright = depTex.Sample(smp, input.uv * 4.0f);
+        //    bright = pow(abs(bright), 100.0f);
+        //    return float4(bright, bright, bright, 1.0f);
+        //}
         if (input.uv.x < 0.25f && input.uv.y < 0.5f)
         {
             float4 normal = normalTex.Sample(smp, input.uv * 4.0f - float2(0, 2.0f));
@@ -241,7 +241,7 @@ float4 PS(BoardOutput input) : SV_TARGET
     dOutline -= depTex.Sample(smp, input.uv + float2(0, -dt.y));
     dOutline -= depTex.Sample(smp, input.uv + float2(dt.x, 0));
     dOutline -= depTex.Sample(smp, input.uv + float2(-dt.x, 0));
-    dOutline = outLineD ?saturate(step(dOutline, 0.0001f)):1.0f;
+    dOutline = outLineD ?saturate(step(dOutline, 0.001f)):1.0f;
     float bright = saturate(dOutline * outline);
 	// return float4(bright, bright, bright, 1);
 	

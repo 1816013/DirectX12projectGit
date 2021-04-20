@@ -92,8 +92,7 @@ void PMDActor::CreatePMDModelTexture()
 			assert(result);
 			textures_[ext][i] = matBuffers[i];
 		}	
-	}
-	
+	}	
 }
 
 PMDLoder& PMDActor::GetPMDModel()
@@ -320,7 +319,7 @@ bool PMDActor::CreateTransformBuffer()
 	mappedBasicMatrix_->lightPos = light;
 	mappedBasicMatrix_->lightVP = view * proj;
 	mappedBasicMatrix_->shadow = mappedBasicMatrix_->world * XMMatrixShadow(plane, light);
-	mappedBasicMatrix_->disolveTop = 20.0f;
+	mappedBasicMatrix_->disolveTop = 30.0f;
 	mappedBasicMatrix_->disolveBottom = -2.0f;
 	mappedBasicMatrix_->isShadowing = true;
 	return true;

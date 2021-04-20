@@ -56,16 +56,6 @@ bool PMDLoder::Load(const char* path)
 		uint32_t indexNum; // 面頂点数
 		char textureFilePath[20]; // テクスチャファイル名またはスフィアファイル名
 	};
-	struct Bone
-	{
-		char boneName[20];		// ボーンの名前20
-		uint16_t parentNo;		// 親ボーン番号2
-		uint16_t tailNo;		// ボーンの終端番号2
-		uint8_t type;			// ボーン種別1
-		uint16_t ikParentNo;	// ik親番号2
-		XMFLOAT3 pos;			// 座標12
-
-	};
 #pragma pack()
 	PMDHeader header;
 	auto readSize = fread_s(&header, sizeof(header), sizeof(header), 1, fp);
@@ -110,56 +100,10 @@ bool PMDLoder::Load(const char* path)
 
 	// ボーン読み込み
 	uint16_t boneNum = 0;
-	readSize = fread_s(&boneNum,
-		sizeof(boneNum),
-		sizeof(boneNum),
-		1, fp);
-
-
-
-	// 読み飛ばし
-	std::vector<Bone>boneData(boneNum);
-	readSize = fread_s(boneData.data(),
-		boneData.size() * sizeof(boneData[0]),
-		boneData.size() * sizeof(boneData[0]),
-		1, fp);
-
-	bones_.resize(boneNum);
-
-	for (int i = 0; i < boneNum; ++i)
-	{
-		bones_[i].name = boneData[i].boneName;
-		bones_[i].pos = boneData[i].pos;
-	}
-	for (int i = 0; i < boneNum; ++i)
-	{
-		if (boneData[i].parentNo == 0xffff)continue;
-		auto pno = boneData[i].parentNo;
-		bones_[pno].children.push_back(i);
-#ifdef _DEBUG
-		bones_[pno].childrenName.push_back(boneData[i].boneName);
-#endif // _DEBUG
-	}
+	LoadBone(boneNum, fp);
 	
-
 	// IK読み込み
-	uint16_t IKNum = 0;
-	readSize = fread_s(&IKNum,
-		sizeof(IKNum),
-		sizeof(IKNum),
-		1, fp);
-
-	for (int i = 0; i < IKNum; ++i)
-	{
-		fseek(fp, 4, SEEK_CUR);
-		uint8_t chainNum = 0; 
-		readSize = fread_s(&chainNum,
-			sizeof(chainNum),
-			sizeof(chainNum),
-			1, fp);
-		fseek(fp, 6, SEEK_CUR);
-		fseek(fp, sizeof(uint16_t) * chainNum, SEEK_CUR);
-	}
+	LoadIK(fp);
 
 	// 表情数
 	uint16_t skinNum = 0;
@@ -170,14 +114,25 @@ bool PMDLoder::Load(const char* path)
 
 	for (int i = 0; i < skinNum; ++i)
 	{
-		fseek(fp, 20, SEEK_CUR);	// 表情名[20]
+		char skinName[20];
+		fread_s(&skinName, 20, 20, 1, fp);// 表情名[20]
+		auto& skinData = skinData_[skinName].skinData;
+		//fseek(fp, 20, SEEK_CUR);	
 		uint32_t skinVertNum = 0;	// その表情に関わる頂点数
 		readSize = fread_s(&skinVertNum,
 			sizeof(skinVertNum),
 			sizeof(skinVertNum),
 			1, fp);
 		fseek(fp, 1, SEEK_CUR);	// 表情の種類
-		fseek(fp, skinVertNum * 16, SEEK_CUR);	// 表情用の頂点データ
+		skinData.resize(skinVertNum);
+		for (auto& skinD : skinData)
+		{
+			fread_s(&skinD.first, sizeof(skinD.first), sizeof(skinD.first),1, fp);
+			// 表情用の頂点データ
+			fread_s(&skinD.second, sizeof(skinD.second), sizeof(skinD.second),1, fp);
+			//skinData.push_back(make_pair(index, vert));
+		//	fseek(fp, skinVertNum * 16, SEEK_CUR);
+		}
 	}
 
 	// 表情表示名
@@ -226,7 +181,23 @@ bool PMDLoder::Load(const char* path)
 
 	fclose(fp);
 
-	for (auto m : materials)
+	// テスト用"あ"の口にする
+	{
+		auto& askin = skinData_["あ"];
+		auto& bskin = skinData_["base"];
+		for (auto& skinD : askin.skinData)
+		{
+			auto& base = bskin.skinData[skinD.first];
+			auto idx = base.first;
+			auto vert = base.second;
+			vertices_[idx].pos.x += skinD.second.x;
+			vertices_[idx].pos.y += skinD.second.y;
+			vertices_[idx].pos.z += skinD.second.z;
+
+		}
+	}
+
+	for (auto& m : materials)
 	{
 		PMDMaterial mat;
 		mat.diffuse = m.diffuse;
@@ -249,6 +220,70 @@ bool PMDLoder::Load(const char* path)
 	}
 	return true;
 
+}
+
+void PMDLoder::LoadIK(FILE* fp)
+{
+	// IK読み込み
+	uint16_t IKNum = 0;
+	auto readSize = fread_s(&IKNum,
+		sizeof(IKNum),
+		sizeof(IKNum),
+		1, fp);
+
+	for (int i = 0; i < IKNum; ++i)
+	{
+		fseek(fp, 4, SEEK_CUR);
+		uint8_t chainNum = 0;
+		readSize = fread_s(&chainNum,
+			sizeof(chainNum),
+			sizeof(chainNum),
+			1, fp);
+		fseek(fp, 6, SEEK_CUR);
+		fseek(fp, sizeof(uint16_t) * chainNum, SEEK_CUR);
+	}
+}
+
+void PMDLoder::LoadBone(uint16_t& boneNum, FILE* fp)
+{
+#pragma pack(1)
+	struct Bone
+	{
+		char boneName[20];		// ボーンの名前20
+		uint16_t parentNo;		// 親ボーン番号2
+		uint16_t tailNo;		// ボーンの終端番号2
+		uint8_t type;			// ボーン種別1
+		uint16_t ikParentNo;	// ik親番号2
+		XMFLOAT3 pos;			// 座標12
+	};
+#pragma pack()
+	auto readSize = fread_s(&boneNum,
+		sizeof(boneNum),
+		sizeof(boneNum),
+		1, fp);
+
+	std::vector<Bone>boneData(boneNum);
+	readSize = fread_s(boneData.data(),
+		boneData.size() * sizeof(boneData[0]),
+		boneData.size() * sizeof(boneData[0]),
+		1, fp);
+
+	bones_.resize(boneNum);
+
+	for (int i = 0; i < boneNum; ++i)
+	{
+		bones_[i].name = boneData[i].boneName;
+		bones_[i].pos = boneData[i].pos;
+	}
+	for (int i = 0; i < boneNum; ++i)
+	{
+		if (boneData[i].parentNo == 0xffff)continue;
+		auto pno = boneData[i].parentNo;
+		bones_[pno].children.push_back(i);
+#ifdef _DEBUG
+		bones_[pno].childrenName.push_back(boneData[i].boneName);
+#endif // _DEBUG
+	}
 }
 
 const std::vector<PMDVertex>& PMDLoder::GetVertexData() const

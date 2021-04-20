@@ -765,6 +765,11 @@ Dx12Wrapper::Dx12Wrapper()
 
 Dx12Wrapper::~Dx12Wrapper()
 {
+	delete(gMemory_);
+	delete(spriteFonts_);
+	delete(spriteBatch_);
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
 }
 
 bool Dx12Wrapper::Init(HWND hwnd)
@@ -1238,7 +1243,7 @@ bool Dx12Wrapper::Update()
 	}
 	if (ImGui::TreeNode("Disolve"))
 	{
-		ImGui::SliderFloat("Top", &mat.disolveTop, 0.0f, 20.0f, "%f");
+		ImGui::SliderFloat("Top", &mat.disolveTop, 0.0f, 30.0f, "%f");
 		ImGui::SliderFloat("Bottom", &mat.disolveBottom, -2.0f, 20.0f, "%f");
 		ImGui::TreePop();
 	}
@@ -1414,7 +1419,7 @@ bool Dx12Wrapper::CreateSwapChain(const HWND& hwnd)
 	auto& app = Application::GetInstance();
 	auto wSize = app.GetWindowSize();
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
-	scDesc.Width = static_cast<UINT>(wSize.width );
+	scDesc.Width = static_cast<UINT>(wSize.width);
 	scDesc.Height = static_cast<UINT>(wSize.height);
 	scDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	scDesc.BufferCount = 2;	// •\‚Æ— ‰æ–Ê

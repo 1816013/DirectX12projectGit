@@ -9,6 +9,18 @@ EffectManager::EffectManager(ID3D12Device* dev, ID3D12CommandQueue* cmdQue)
 	Init(dev, cmdQue);
 }
 
+EffectManager::~EffectManager()
+{
+	efkRenderer_->Release();
+	efkManager_->Release();
+	efkSfMemoryPool_->Release();
+	efkCmdList_->Release();
+	for (auto e : effect_)
+	{
+		e.second->Release();
+	}
+}
+
 void EffectManager::Init(ID3D12Device* dev, ID3D12CommandQueue* cmdQue)
 {
 	// ƒŒƒ“ƒ_ƒ‰[ì¬
